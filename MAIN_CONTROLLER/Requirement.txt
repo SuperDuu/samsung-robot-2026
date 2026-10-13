@@ -1,0 +1,12 @@
+STM2g473RET6
+1 i2c và ra 4 chân cs để đọc 4 con cảm biến khoảng cách
+4 đầu ra uart
+pad hàn chọn đầu ra uart/rs485
+4 chân pwm để ấy servo
+1 spi cho màn hình ili9341 2.8inch
+1 usb
+Imu bno055
+4 nút nhấn 2 công tắc gạt
+11 led thẳng hàng hiển thị cho 11 mắt line, 3 led nữa cho hệ thống
+con fet kích cái còi 
+2 con rf là hc12 và c1101
