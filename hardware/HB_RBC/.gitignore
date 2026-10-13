@@ -1,0 +1,7 @@
+# KiCad lock & temporary files
+*.lck
+*.kicad_prl
+_restore_backup*/
+
+# Editor / IDE
+.history/
