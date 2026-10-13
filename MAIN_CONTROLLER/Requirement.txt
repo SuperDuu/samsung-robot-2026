@@ -1,12 +1,47 @@
-STM2g473RET6
-1 i2c và ra 4 chân cs để đọc 4 con cảm biến khoảng cách
-4 đầu ra uart
-pad hàn chọn đầu ra uart/rs485
-4 chân pwm để ấy servo
-1 spi cho màn hình ili9341 2.8inch
-1 usb
-Imu bno055
-4 nút nhấn 2 công tắc gạt
-11 led thẳng hàng hiển thị cho 11 mắt line, 3 led nữa cho hệ thống
-con fet kích cái còi 
-2 con rf là hc12 và c1101
+MCU:
+- STM32G473RET6
+
+COMMUNICATION:
+- 1x I2C
+  + 4x distance sensors
+  + BNO055 IMU
+- 1x UART
+- 4x UART/RS485 selectable via solder pads
+- 1x SPI
+  + ILI9341 2.8" TFT
+  + CC1101 RF
+- 1x USB
+
+MOTOR / SERVO:
+- 4x PWM output
+  + 4x Servo
+
+SENSORS:
+- 1x BNO055 IMU
+- 1x 74HC4067 16-channel analog multiplexer
+  + RPR220 line sensors
+  + ADC input
+
+LINE SENSOR:
+
+- 11x indicator LEDs
+  + 1 LED / sensor
+
+USER INTERFACE:
+- 4x Push buttons
+- 2x Toggle switches
+- 3x System status LEDs
+- 1x Buzzer
+- 1x MOSFET driver for buzzer
+
+RF:
+- 1x HC-12
+- 1x CC1101
+
+DISPLAY:
+- 1x ILI9341 2.8" TFT LCD
+
+POWER / CONTROL:
+- MCU: STM32G473RET6
+- MOSFET output for buzzer
+- Solder pads for UART / RS485 selection
