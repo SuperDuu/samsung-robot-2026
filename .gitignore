@@ -1,0 +1,10 @@
+# KiCad temporary and lock files
+*.lck
+*.bak
+*.kicad_sch.bak
+*.kicad_pcb.bak
+_restore_backup*/
+.history/
+
+# Math foundations (Strict rule: MUST NOT be committed to git)
+MATH_FOUNDATIONS.md
