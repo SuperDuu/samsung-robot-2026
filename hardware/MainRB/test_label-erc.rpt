@@ -1,0 +1,30 @@
+ERC report (2026-10-27T15:21:19, Encoding UTF8)
+Report includes: Errors, Warnings
+
+***** Sheet /
+[label_dangling]: Label not connected
+    ; error
+    @(72.39 mm, 50.00 mm): Label 'TEST_LEFT'
+[label_dangling]: Label not connected
+    ; error
+    @(123.19 mm, 50.00 mm): Label 'TEST_RIGHT'
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(72.39 mm, 50.00 mm): Horizontal Wire, length 5.08 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(72.39 mm, 50.00 mm): Horizontal Wire, length 5.08 mm
+[endpoint_off_grid]: Symbol pin or wire end off connection grid
+    ; warning
+    @(118.11 mm, 50.00 mm): Horizontal Wire, length 5.08 mm
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(118.11 mm, 50.00 mm): Horizontal Wire, length 5.08 mm
+
+ ** ERC messages: 6  Errors 2  Warnings 4
+
+ ** Ignored checks:
+    - Global label only appears once in the schematic
+    - Four connection points are joined together
+    - SPICE model issue
+    - Assigned footprint doesn't match footprint filters
