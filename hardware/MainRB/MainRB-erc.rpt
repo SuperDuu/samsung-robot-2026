@@ -1,0 +1,54 @@
+ERC report (2026-10-28T22:13:38, Encoding UTF8)
+Report includes: Errors, Warnings
+
+***** Sheet /
+[power_pin_not_driven]: Input Power pin not driven by any Output Power pins
+    ; error
+    @(111.76 mm, 77.47 mm): Symbol #PWR03 Pin 1 [Power input, Line]
+[power_pin_not_driven]: Input Power pin not driven by any Output Power pins
+    ; error
+    @(127.00 mm, 219.71 mm): Symbol #PWR088 Pin 1 [Power input, Line]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(246.38 mm, 144.78 mm): Symbol J9 Pin 5 [Pin_5, Passive, Line]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(247.65 mm, 118.11 mm): Symbol J5 Pin 5 [Pin_5, Passive, Line]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(270.51 mm, 144.78 mm): Symbol J10 Pin 5 [Pin_5, Passive, Line]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(271.78 mm, 118.11 mm): Symbol J6 Pin 5 [Pin_5, Passive, Line]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(327.66 mm, 27.94 mm): Symbol J28 Pin 1 [Pin_1, Passive, Line]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(327.66 mm, 66.04 mm): Symbol J29 Pin 1 [Pin_1, Passive, Line]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(327.66 mm, 102.87 mm): Symbol J32 Pin 1 [Pin_1, Passive, Line]
+[pin_not_connected]: Pin not connected
+    ; error
+    @(327.66 mm, 140.97 mm): Symbol J33 Pin 1 [Pin_1, Passive, Line]
+[lib_symbol_mismatch]: Symbol 'KH-TYPE-C-16P' doesn't match copy in library 'KH-TYPE-C-16P'
+    ; warning
+    @(50.80 mm, 123.19 mm): Symbol J23 [KH-TYPE-C-16P]
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(215.90 mm, 116.84 mm): Label 'MH_MISO'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(264.16 mm, 198.12 mm): Label 'I2C1_SCL'
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(264.16 mm, 200.66 mm): Label 'I2C1_SDA'
+
+ ** ERC messages: 14  Errors 10  Warnings 4
+
+ ** Ignored checks:
+    - Global label only appears once in the schematic
+    - Four connection points are joined together
+    - SPICE model issue
+    - Assigned footprint doesn't match footprint filters
