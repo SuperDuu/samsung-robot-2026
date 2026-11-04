@@ -11,3 +11,5 @@ MATH_FOUNDATIONS.md
 .history/
 *.stl
 *.STL
+~$*.SLD*
+~$*.sld*
