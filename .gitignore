@@ -8,3 +8,6 @@ _restore_backup*/
 
 # Math foundations (Strict rule: MUST NOT be committed to git)
 MATH_FOUNDATIONS.md
+.history/
+*.stl
+*.STL

@@ -1,9 +1,0 @@
-Manufacturer=ROHM Semiconductor
-PartNumber=RPR-220
-PartCategory=Undefined or Miscellaneous
-PackageCategory=Other
-PinCount=4
-Version=3.3
-Released=2021-06-01 13:30:12
-Downloaded=2026-10-05 09:56:03
-3D=Y
