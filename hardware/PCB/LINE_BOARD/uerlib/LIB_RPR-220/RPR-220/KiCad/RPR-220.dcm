@@ -1,0 +1,9 @@
+EESchema-DOCLIB  Version 2.0
+#
+$CMP RPR-220
+D PHOTOINTERRUPTER REFL 6MM 800NM Reflective Optical Sensor 0.236" (6mm) Radial - 4 Leads
+K
+F https://fscdn.rohm.com/en/products/databook/datasheet/opto/optical_sensor/photosensor/rpr-220.pdf
+$ENDCMP
+#
+#End Doc Library

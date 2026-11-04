@@ -1,0 +1,11 @@
+FILE_TYPE = MULTI_PHYS_TABLE;
+
+PART 'RPR_220'
+CLASS = DISCRETE
+{========================================================================================}
+:"MANUFACTURER_NAME", "MANUFACTURER_PART_NUMBER"= "PART_NUMBER", "JEDEC_TYPE", "PACK_TYPE", "MOUSER_PART_NUMBER", "MOUSER_PRICE/STOCK", "ARROW_PART_NUMBER", "ARROW_PRICE/STOCK", "DESCRIPTION", "DATASHEET", "HEIGHT";
+{========================================================================================}
+ "ROHM Semiconductor", "RPR-220" (!) = "", "RPR220", "Other", "755-RPR-220", "https://www.mouser.co.uk/ProductDetail/ROHM-Semiconductor/RPR-220?qs=4kLU8WoGk0tYWaIenvZlYw%3D%3D", "RPR-220", "https://www.arrow.com/en/products/rpr-220/rohm-semiconductor.html?utm_currency=USD&region=asia", "PHOTOINTERRUPTER REFL 6MM 800NM Reflective Optical Sensor 0.236" (6mm) Radial - 4 Leads", "https://fscdn.rohm.com/en/products/databook/datasheet/opto/optical_sensor/photosensor/rpr-220.pdf", "6.7 mm"
+END_PART
+
+END.
