@@ -52,8 +52,7 @@
       "conflict_shadows",
       "shapes",
       "board_outline_area",
-      "ly_points",
-      "grid_items"
+      "ly_points"
     ],
     "visible_layers": "ffffffff_ffffffff_fffffff5_ffffffff",
     "zone_display_mode": 0
@@ -66,7 +65,7 @@
   },
   "meta": {
     "filename": "tay_dk.kicad_prl",
-    "version": 6
+    "version": 5
   },
   "net_inspector_panel": {
     "col_hidden": [
