@@ -8,3 +8,14 @@ _restore_backup*/
 
 # Math foundations (Strict rule: MUST NOT be committed to git)
 MATH_FOUNDATIONS.md
+
+# Local debug log (MUST NOT be committed to git)
+DEBUG_LOG.md
+
+# STM32CubeIDE build outputs
+firmware/*/Debug/
+firmware/*/Release/
+
+# Local editor settings
+.vscode/
+
