@@ -37,7 +37,8 @@ extern "C" {
 
 #define DRIVE_OMNI_GEAR_COUNT            4U
 #define DRIVE_OMNI_DEFAULT_GEAR          0U      /* 33% default base speed tier (3x boost with L1 reaches 100%) */
-#define DRIVE_OMNI_CRAWL_PCT             20U     /* L2+R2 simultaneous precision crawl */
+#define DRIVE_OMNI_CRAWL_PCT             20U     /* Precision crawl */
+#define DRIVE_OMNI_TRIM_ROT_PCT          10.0f   /* 20 RPM fine yaw adjustment (10% of 2000 rpm_x10) */
 #define DRIVE_OMNI_ROT_STEP_DEG          1.2f    /* 120 deg/s at 100 Hz while L1/R1 held */
 #define DRIVE_OMNI_HEADING_TRIM_STEP_DEG 0.5f    /* SELECT + L1/R1 live IMU trim per press */
 #define DRIVE_OMNI_HEADING_KP            2.0f    /* 2.0% * 2.0 RPM/% = 4.0 RPM/deg (firm, crisp, gear-invariant) */

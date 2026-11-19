@@ -216,9 +216,15 @@ void Drive_OmniComputeFromPs2(Drive_OmniState_t *state,
   drive_extract_ps2_xy(in, &target_x, &target_y);
 
   bool boost_3x = (in->ps2_btn[1] & DRIVE_PS2_B1_L1) != 0U; /* tx_buf[3] = 4: 3x speed boost */
+  bool l2 = (in->ps2_btn[1] & DRIVE_PS2_B1_L2) != 0U;
+  bool r2 = (in->ps2_btn[1] & DRIVE_PS2_B1_R2) != 0U;
   bool r1 = (in->ps2_btn[1] & DRIVE_PS2_B1_R1) != 0U;
   float target_w = 0.0f;
-  if (r1) {
+  if (l2 && !r2) {
+    target_w = +DRIVE_OMNI_TRIM_ROT_PCT; /* 20 RPM rotate left */
+  } else if (r2 && !l2) {
+    target_w = -DRIVE_OMNI_TRIM_ROT_PCT; /* 20 RPM rotate right */
+  } else if (r1) {
     target_w = +DRIVE_OMNI_OMEGA_MAX;
   }
 
@@ -235,8 +241,7 @@ void Drive_OmniComputeFromPs2(Drive_OmniState_t *state,
     theta_rad = wrapped_deg * DRIVE_DEG_TO_RAD_F;
   }
 
-  bool boost_r2 = (in->ps2_btn[1] & DRIVE_PS2_B1_R2) != 0U;
-  float v_scale = boost_r2 ? DRIVE_OMNI_BOOST_RPMX10 : DRIVE_OMNI_NORM_RPMX10;
+  float v_scale = ((float)max_abs_rpm_x10 * 33.0f) * 0.01f;
   if (boost_3x) {
     v_scale = fminf(v_scale * 3.0f, (float)max_abs_rpm_x10);
   }
@@ -327,6 +332,8 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
   uint8_t b1 = in->ps2_btn[1];
   uint8_t rise0 = (uint8_t)(b0 & (uint8_t)(~ctrl->prev_btn0));
   uint8_t rise1 = (uint8_t)(b1 & (uint8_t)(~ctrl->prev_btn1));
+  uint8_t fell1 = (uint8_t)(ctrl->prev_btn1 & (uint8_t)(~b1));
+  bool trim_release = ((fell1 & (DRIVE_PS2_B1_L2 | DRIVE_PS2_B1_R2)) != 0U);
   ctrl->prev_btn0 = b0;
   ctrl->prev_btn1 = b1;
 
@@ -348,28 +355,16 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     }
   }
 
-  /* Speed tier gears: L2 = Gear Down, R2 = Gear Up, L2+R2 held = 20% Precision
-   * Crawl */
+  /* L2 = fine-trim rotate LEFT, R2 = fine-trim rotate RIGHT at 20 RPM */
   bool l2 = (b1 & DRIVE_PS2_B1_L2) != 0U;
   bool r2 = (b1 & DRIVE_PS2_B1_R2) != 0U;
-  if (!(l2 && r2)) {
-    if (((rise1 & DRIVE_PS2_B1_L2) != 0U) && (ctrl->gear > 0U)) {
-      ctrl->gear--;
-    }
-    if (((rise1 & DRIVE_PS2_B1_R2) != 0U) &&
-        (ctrl->gear < (DRIVE_OMNI_GEAR_COUNT - 1U))) {
-      ctrl->gear++;
-    }
-  }
-  ctrl->active_speed_pct =
-      (l2 && r2) ? DRIVE_OMNI_CRAWL_PCT : kGearSpeedPct[ctrl->gear];
+  bool trim_rot = (l2 != r2);
 
   /* D-pad micro-adjustment (16, 32, 64, 128): lock into 20% crawl speed */
   bool dpad_active = (b0 & (DRIVE_PS2_B0_UP | DRIVE_PS2_B0_RIGHT |
                             DRIVE_PS2_B0_DOWN | DRIVE_PS2_B0_LEFT)) != 0U;
-  if (dpad_active) {
-    ctrl->active_speed_pct = DRIVE_OMNI_CRAWL_PCT;
-  }
+  ctrl->active_speed_pct =
+      dpad_active ? DRIVE_OMNI_CRAWL_PCT : kGearSpeedPct[ctrl->gear];
 
   /* Cardinal + diagonal field-centric snaps:
    * When pure_field_centric is true, keep field_axis_offset_deg = 0.0f so
@@ -432,11 +427,17 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
   bool boost_3x = (b1 & DRIVE_PS2_B1_L1) != 0U; /* tx_buf[3] = 4: 3x speed boost */
   bool l1 = false; /* L1 is dedicated to 3x turbo boost, NOT left rotation */
   bool r1 = (b1 & DRIVE_PS2_B1_R1) != 0U;
-  if (cardinal_or_diag || (!select_held && (l1 != r1))) {
+  if (cardinal_or_diag || trim_rot || (!select_held && (l1 != r1))) {
     ctrl->rot_ramp_ticks = DRIVE_OMNI_HEADING_RAMP_TICKS;
     ctrl->heading_settled = false;
   }
   float yaw_meas_deg = imu_ok ? (robot_yaw_deg + ctrl->heading_trim_deg) : 0.0f;
+  if (trim_release && imu_ok) {
+    ctrl->target_heading_deg = yaw_meas_deg;
+    ctrl->slew_heading_deg = yaw_meas_deg;
+    ctrl->rot_ramp_ticks = DRIVE_OMNI_HEADING_RAMP_TICKS;
+    ctrl->heading_settled = false;
+  }
   float target_w = 0.0f;
 
   /* Update filtered yaw angular velocity (deg/s) at 100 Hz */
@@ -456,7 +457,16 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
       ctrl->yaw_rate_dps + 0.20f * (raw_dps - ctrl->yaw_rate_dps);
 
   float rot_dir = ctrl->rot_btn_invert ? -1.0f : 1.0f;
-  if (ctrl->field_centric && ctrl->heading_hold && imu_ok) {
+  if (trim_rot) {
+    /* Fine yaw trim: L2 rotates LEFT (-rot_dir * 10%), R2 rotates RIGHT (+rot_dir * 10%) at ~20 RPM */
+    target_w = l2 ? (-rot_dir * DRIVE_OMNI_TRIM_ROT_PCT)
+                  : (+rot_dir * DRIVE_OMNI_TRIM_ROT_PCT);
+    ctrl->target_heading_deg = yaw_meas_deg;
+    ctrl->slew_heading_deg = yaw_meas_deg;
+    ctrl->heading_settled = false;
+    ctrl->rot_ramp_ticks = DRIVE_OMNI_HEADING_RAMP_TICKS;
+    ctrl->omega_fb_pct = target_w;
+  } else if (ctrl->field_centric && ctrl->heading_hold && imu_ok) {
     if (!select_held && l1 && !r1) {
       ctrl->target_heading_deg = Drive_WrapAngleDeg(
           ctrl->target_heading_deg - rot_dir * DRIVE_OMNI_ROT_STEP_DEG);
@@ -545,7 +555,10 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     target_w = drive_clampf(sign * pd_w, -max_omega, max_omega);
     ctrl->omega_fb_pct = target_w;
   } else {
-    if (!select_held && l1 && !r1) {
+    if (trim_rot) {
+      target_w = l2 ? (-rot_dir * DRIVE_OMNI_TRIM_ROT_PCT)
+                    : (+rot_dir * DRIVE_OMNI_TRIM_ROT_PCT);
+    } else if (!select_held && l1 && !r1) {
       target_w = -rot_dir * DRIVE_OMNI_OMEGA_MAX;
     } else if (!select_held && r1 && !l1) {
       target_w = +rot_dir * DRIVE_OMNI_OMEGA_MAX;
@@ -554,7 +567,7 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
   }
 
   bool translating_now = (target_x != 0.0f) || (target_y != 0.0f);
-  bool spinning_now = cardinal_or_diag || (!select_held && (l1 != r1));
+  bool spinning_now = cardinal_or_diag || trim_rot || (!select_held && (l1 != r1));
 
   if (translating_now || spinning_now) {
     ctrl->stop_brake_ticks = 0U;
