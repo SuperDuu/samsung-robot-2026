@@ -384,7 +384,7 @@
   "erc": {
     "erc_exclusions": [],
     "meta": {
-      "version": 1
+      "version": 0
     },
     "pin_map": [
       [
@@ -811,7 +811,7 @@
         "uuid": "03e6a7f2-868e-4ae4-9763-8285adf463e9"
       }
     ],
-    "used_designators": "U1-4,D1-4,#PWR1-18,R1-9,J1-7,Y1,C1-14,SW1-4,Q1-2,H1-4,BZ1",
+    "used_designators": "#PWR1-18,BZ1,C1-14,D1-4,H1-4,J1-7,Q1-2,R1-9,SW1-4,U1-4,Y1",
     "variants": []
   },
   "sheets": [
