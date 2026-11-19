@@ -490,13 +490,23 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
   Drive_OmniCtrlStep(&ctrl, &in, false, 20.0f, true, 4000, modes, targets);
   assert(fabsf(ctrl.target_heading_deg - locked_hdg) < 0.01f);
 
-  /* Gear switching + L2+R2 crawl override */
+  /* Fine yaw trim with L2 (left) and R2 (right) at 20 RPM (200 rpm_x10) */
+  in.ps2_btn[1] = DRIVE_PS2_B1_L2;
+  Drive_OmniCtrlStep(&ctrl, &in, false, 15.0f, true, 4000, modes, targets);
+  assert(fabsf(fabsf(ctrl.omega_fb_pct) - DRIVE_OMNI_TRIM_ROT_PCT) < 0.01f);
+  assert(abs(targets[0]) == 200); /* 20.0 RPM per wheel */
+
+  /* Release L2 locks current heading immediately */
+  in.ps2_btn[1] = 0U;
+  Drive_OmniCtrlStep(&ctrl, &in, false, 18.0f, true, 4000, modes, targets);
+  assert(fabsf(ctrl.target_heading_deg - 18.0f) < 0.01f);
+
+  /* R2 rotates in opposite direction at 20 RPM */
   in.ps2_btn[1] = DRIVE_PS2_B1_R2;
-  Drive_OmniCtrlStep(&ctrl, &in, false, 0.0f, true, 4000, modes, targets);
-  assert(ctrl.gear == (DRIVE_OMNI_DEFAULT_GEAR + 1U)); /* 100% */
-  in.ps2_btn[1] = (uint8_t)(DRIVE_PS2_B1_L2 | DRIVE_PS2_B1_R2);
-  Drive_OmniCtrlStep(&ctrl, &in, false, 0.0f, true, 4000, modes, targets);
-  assert(ctrl.active_speed_pct == DRIVE_OMNI_CRAWL_PCT);
+  Drive_OmniCtrlStep(&ctrl, &in, false, 18.0f, true, 4000, modes, targets);
+  assert(fabsf(fabsf(ctrl.omega_fb_pct) - DRIVE_OMNI_TRIM_ROT_PCT) < 0.01f);
+  assert(abs(targets[0]) == 200); /* 20.0 RPM per wheel */
+  in.ps2_btn[1] = 0U;
 
   /* Falsification: Heading loop gain MUST be invariant across all speed gears!
    * Same 10 deg error must yield identical wheel RPM at Gear 0 (40%) and Gear 3 (100%). */
