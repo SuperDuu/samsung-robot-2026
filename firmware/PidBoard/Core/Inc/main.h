@@ -36,7 +36,19 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+typedef struct
+{
+  uint8_t  node_id;
+  int16_t  target_rpm_x10;
+  int16_t  actual_rpm_x10;
+  int16_t  duty_permille;
+  int32_t  enc_count;
+  uint8_t  watchdog_tripped;
+  uint8_t  last_rx_seq;
+  uint32_t last_rx_ms;
+} Pid_Debug_t;
 
+extern Pid_Debug_t g_pid_debug;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
