@@ -313,6 +313,18 @@ HAL_StatusTypeDef HAL_TIM_Base_Stop_IT(TIM_HandleTypeDef *htim)
   return (htim != NULL) ? HAL_OK : HAL_ERROR;
 }
 
+HAL_StatusTypeDef HAL_TIM_PWM_Start(TIM_HandleTypeDef *htim, uint32_t Channel)
+{
+  (void)Channel;
+  return (htim != NULL) ? HAL_OK : HAL_ERROR;
+}
+
+HAL_StatusTypeDef HAL_TIM_PWM_Stop(TIM_HandleTypeDef *htim, uint32_t Channel)
+{
+  (void)Channel;
+  return (htim != NULL) ? HAL_OK : HAL_ERROR;
+}
+
 HAL_StatusTypeDef HAL_ADC_Start_DMA(ADC_HandleTypeDef *hadc, uint32_t *pData, uint32_t Length)
 {
   (void)Length;
