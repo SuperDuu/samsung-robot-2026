@@ -171,10 +171,10 @@ static void rf_dispatch_6byte_frame(RF_HC12_t *rf, const uint8_t *buf,
                                     uint32_t now_ms) {
   /* buf format (6 bytes, proven in RB2026_TX_PS2_NEW & RBC2026_MAINBOARD_R1):
    * [0] = 255 (RF_6BYTE_SOF / 0xFF)
-   * [1] = JoyY (0..200, neutral = 100)
-   * [2] = JoyX (0..200, neutral = 100)
-   * [3] = Btn1 (du.button[1]: L2, R2, L1, R1, △, ◯, ✕, □)
-   * [4] = Btn0 (du.button[0]: Select, L3, R3, Start, D-Pad)
+   * [1] = JoyY (0..200, neutral = 100) -> Left Stick Y (du.data[0])
+   * [2] = JoyX (0..200, neutral = 100) -> Left Stick X (du.data[1])
+   * [3] = Btn1 (du.button[1]: L2, R2, L1=4, R1=8, △, ◯, ✕, □)
+   * [4] = Btn0 (du.button[0]: 16,32,64,128 or 200..203 for Servos)
    * [5] = Cnt  (rolling counter 0..249)
    */
   uint8_t src_id = (uint8_t)RF_NODE_TDK;
@@ -189,12 +189,10 @@ static void rf_dispatch_6byte_frame(RF_HC12_t *rf, const uint8_t *buf,
     return;
   }
 
-  /* 6-byte frame has no CRC -> validate field ranges & rolling sequence continuity
-   * to reject RF EMI glitches that otherwise cause random 20 ms motor twitches. */
   uint8_t joy_y = buf[1];
   uint8_t joy_x = buf[2];
   uint8_t cnt = buf[5];
-  bool joy_y_ok = (joy_y <= 200U) || (joy_y >= 250U); /* 0..200 or 252 underflow */
+  bool joy_y_ok = (joy_y <= 200U) || (joy_y >= 250U);
   bool joy_x_ok = (joy_x <= 220U);
   bool cnt_ok = (cnt < 250U);
   if (!joy_y_ok || !joy_x_ok || !cnt_ok) {
@@ -225,8 +223,8 @@ static void rf_dispatch_6byte_frame(RF_HC12_t *rf, const uint8_t *buf,
   rf->last_rx.payload[2] = buf[2]; /* joy_sum[1] (JoyX) */
   rf->last_rx.payload[3] = buf[1]; /* joy_left[0] */
   rf->last_rx.payload[4] = buf[2]; /* joy_left[1] */
-  rf->last_rx.payload[5] = buf[4]; /* ps2_btn[0] (du.button[0]) */
-  rf->last_rx.payload[6] = buf[3]; /* ps2_btn[1] (du.button[1]) */
+  rf->last_rx.payload[5] = buf[4]; /* ps2_btn[0] (du.button[0]: 16,32,64,128 or 200..203) */
+  rf->last_rx.payload[6] = buf[3]; /* ps2_btn[1] (du.button[1], bit 2 = 4 is L1 Boost 3x) */
   rf->last_rx.payload[7] = RF_TDK_PS2_VALID_BIT | RF_TDK_PS2_ANALOG_BIT;
   rf->last_rx.payload[8] = buf[5]; /* aux (cnt) */
 
@@ -956,7 +954,7 @@ HAL_StatusTypeDef RF_HC12_SendTdkCmd(RF_HC12_t *rf, RF_NodeId_t dst_id,
    * [1] = JoyY (cmd->joy_sum[0])
    * [2] = JoyX (cmd->joy_sum[1])
    * [3] = Btn1 (cmd->ps2_btn[1])
-   * [4] = Btn0 (cmd->ps2_btn[0])
+   * [4] = Btn0 (cmd->ps2_btn[0]: 16,32,64,128 or 200..203)
    * [5] = Cnt  (rf->tx_seq: 0..249)
    */
   rf->tx_buf[0] = RF_6BYTE_SOF;
