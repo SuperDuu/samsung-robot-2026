@@ -15,7 +15,7 @@
 #define DRIVE_PI4_F 0.7853981634f
 #define DRIVE_PI34_F 2.3561944902f
 
-static const uint8_t kGearSpeedPct[DRIVE_OMNI_GEAR_COUNT] = {40U, 65U, 85U,
+static const uint8_t kGearSpeedPct[DRIVE_OMNI_GEAR_COUNT] = {33U, 55U, 75U,
                                                              100U};
 
 static const float kWheelAngles[DRIVE_OMNI_WHEEL_COUNT] = {
@@ -97,8 +97,8 @@ static void drive_extract_ps2_xy(const Drive_Ps2Input_t *in, float *out_x,
   }
 
   /* Digital D-pad fallback (active in both digital 0x41 and centered analog
-   * modes) */
-  if (target_y == 0.0f) {
+   * modes; codes >= 200 are reserved for continuous 360 servos) */
+  if ((target_y == 0.0f) && (in->ps2_btn[0] < 200U)) {
     bool dpad_up = (in->ps2_btn[0] & DRIVE_PS2_B0_UP) != 0U;
     bool dpad_down = (in->ps2_btn[0] & DRIVE_PS2_B0_DOWN) != 0U;
     if (dpad_up && !dpad_down) {
@@ -107,13 +107,13 @@ static void drive_extract_ps2_xy(const Drive_Ps2Input_t *in, float *out_x,
       target_y = +DRIVE_OMNI_DPAD_PCT;
     }
   }
-  if (target_x == 0.0f) {
+  if ((target_x == 0.0f) && (in->ps2_btn[0] < 200U)) {
     bool dpad_left = (in->ps2_btn[0] & DRIVE_PS2_B0_LEFT) != 0U;
     bool dpad_right = (in->ps2_btn[0] & DRIVE_PS2_B0_RIGHT) != 0U;
     if (dpad_left && !dpad_right) {
-      target_x = +DRIVE_OMNI_DPAD_PCT;
-    } else if (dpad_right && !dpad_left) {
       target_x = -DRIVE_OMNI_DPAD_PCT;
+    } else if (dpad_right && !dpad_left) {
+      target_x = +DRIVE_OMNI_DPAD_PCT;
     }
   }
 
@@ -215,12 +215,10 @@ void Drive_OmniComputeFromPs2(Drive_OmniState_t *state,
   float target_y = 0.0f;
   drive_extract_ps2_xy(in, &target_x, &target_y);
 
-  bool l1 = (in->ps2_btn[1] & DRIVE_PS2_B1_L1) != 0U;
+  bool boost_3x = (in->ps2_btn[1] & DRIVE_PS2_B1_L1) != 0U; /* tx_buf[3] = 4: 3x speed boost */
   bool r1 = (in->ps2_btn[1] & DRIVE_PS2_B1_R1) != 0U;
   float target_w = 0.0f;
-  if (l1 && !r1) {
-    target_w = -DRIVE_OMNI_OMEGA_MAX;
-  } else if (r1 && !l1) {
+  if (r1) {
     target_w = +DRIVE_OMNI_OMEGA_MAX;
   }
 
@@ -239,6 +237,9 @@ void Drive_OmniComputeFromPs2(Drive_OmniState_t *state,
 
   bool boost_r2 = (in->ps2_btn[1] & DRIVE_PS2_B1_R2) != 0U;
   float v_scale = boost_r2 ? DRIVE_OMNI_BOOST_RPMX10 : DRIVE_OMNI_NORM_RPMX10;
+  if (boost_3x) {
+    v_scale = fminf(v_scale * 3.0f, (float)max_abs_rpm_x10);
+  }
   drive_mix_omni_wheels(state->vx_pct, state->vy_pct, state->omega_pct,
                         theta_rad, v_scale, DRIVE_OMNI_OMEGA_SCALE_RPMX10,
                         max_abs_rpm_x10, out_modes, out_targets);
@@ -321,7 +322,8 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     return;
   }
 
-  uint8_t b0 = in->ps2_btn[0];
+  uint8_t raw_b0 = in->ps2_btn[0];
+  uint8_t b0 = (raw_b0 < 200U) ? raw_b0 : 0U; /* Codes >= 200 are 360-servo commands */
   uint8_t b1 = in->ps2_btn[1];
   uint8_t rise0 = (uint8_t)(b0 & (uint8_t)(~ctrl->prev_btn0));
   uint8_t rise1 = (uint8_t)(b1 & (uint8_t)(~ctrl->prev_btn1));
@@ -361,6 +363,13 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
   }
   ctrl->active_speed_pct =
       (l2 && r2) ? DRIVE_OMNI_CRAWL_PCT : kGearSpeedPct[ctrl->gear];
+
+  /* D-pad micro-adjustment (16, 32, 64, 128): lock into 20% crawl speed */
+  bool dpad_active = (b0 & (DRIVE_PS2_B0_UP | DRIVE_PS2_B0_RIGHT |
+                            DRIVE_PS2_B0_DOWN | DRIVE_PS2_B0_LEFT)) != 0U;
+  if (dpad_active) {
+    ctrl->active_speed_pct = DRIVE_OMNI_CRAWL_PCT;
+  }
 
   /* Cardinal + diagonal field-centric snaps:
    * When pure_field_centric is true, keep field_axis_offset_deg = 0.0f so
@@ -418,7 +427,8 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     }
   }
 
-  bool l1 = (b1 & DRIVE_PS2_B1_L1) != 0U;
+  bool boost_3x = (b1 & DRIVE_PS2_B1_L1) != 0U; /* tx_buf[3] = 4: 3x speed boost */
+  bool l1 = false; /* L1 is dedicated to 3x turbo boost, NOT left rotation */
   bool r1 = (b1 & DRIVE_PS2_B1_R1) != 0U;
   if (cardinal_or_diag || (!select_held && (l1 != r1))) {
     ctrl->rot_ramp_ticks = DRIVE_OMNI_HEADING_RAMP_TICKS;
@@ -592,6 +602,9 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
 
   float v_scale =
       ((float)max_abs_rpm_x10 * (float)ctrl->active_speed_pct) * 0.01f;
+  if (boost_3x) {
+    v_scale = fminf(v_scale * 3.0f, (float)max_abs_rpm_x10);
+  }
   drive_mix_omni_wheels(ctrl->slew.vx_pct, ctrl->slew.vy_pct,
                         ctrl->slew.omega_pct, theta_rad, v_scale,
                         DRIVE_OMNI_OMEGA_SCALE_RPMX10, max_abs_rpm_x10,
