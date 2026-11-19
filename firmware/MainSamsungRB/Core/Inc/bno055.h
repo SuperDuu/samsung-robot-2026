@@ -265,7 +265,9 @@ enum bno055_axis_map_sign_t {
 void bno055_writeData(uint8_t reg, uint8_t data);
 void bno055_readData(uint8_t reg, uint8_t *data, uint8_t len);
 void bno055_delay(int time);
+bool bno055_lastIoOk(void);
 
+void bno055_invalidatePageCache(void);
 void bno055_setPage(uint8_t page);
 void bno055_reset(void);
 bno055_opmode_t bno055_getOperationMode(void);
