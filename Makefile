@@ -12,6 +12,7 @@ SRCS = tests/run_all_tests.c \
        firmware/MainSamsungRB/Core/Src/bno055_stm32.c \
        firmware/MainSamsungRB/Core/Src/bno08x.c \
        firmware/MainSamsungRB/Core/Src/cd4067.c \
+       firmware/MainSamsungRB/Core/Src/servo.c \
        firmware/MainRB2/Core/Src/flash_cal.c \
        firmware/MainRB2/Core/Src/itc2026_auto.c \
        firmware/MainRB2/Core/Src/tof_vl53l1x.c \

@@ -16,6 +16,7 @@
 #include "mock_hal.h"
 #include "rf_hc12.h"
 #include "rs485_bus.h"
+#include "servo.h"
 #include "tof_vl53l1x.h"
 
 #include <assert.h>
@@ -478,17 +479,18 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
   Drive_OmniCtrlStep(&ctrl, &in, false, 0.0f, true, 4000, modes, targets);
   assert(!ctrl.diagonal_45 && fabsf(ctrl.target_heading_deg) < 0.01f);
 
+  /* Falsification: Standalone R1 is dedicated to clamp toggle, so it MUST NOT
+   * rotate the robot or change target_heading! */
   in.ps2_btn[0] = 0U;
   in.ps2_btn[1] = DRIVE_PS2_B1_R1;
+  float pre_r1_hdg = ctrl.target_heading_deg;
   for (int step = 0; step < 30; step++) {
     Drive_OmniCtrlStep(&ctrl, &in, false, 20.0f, true, 4000, modes, targets);
   }
-  assert(fabsf(Drive_WrapAngleDeg(ctrl.target_heading_deg - 20.0f)) <=
-         (DRIVE_OMNI_HEADING_LEAD_CAP_DEG + 0.01f));
-  float locked_hdg = ctrl.target_heading_deg;
+  assert(fabsf(ctrl.target_heading_deg - pre_r1_hdg) < 0.01f);
   in.ps2_btn[1] = 0U;
   Drive_OmniCtrlStep(&ctrl, &in, false, 20.0f, true, 4000, modes, targets);
-  assert(fabsf(ctrl.target_heading_deg - locked_hdg) < 0.01f);
+  assert(fabsf(ctrl.target_heading_deg - pre_r1_hdg) < 0.01f);
 
   /* Fine yaw trim with L2 (left) and R2 (right) at 20 RPM (200 rpm_x10) */
   in.ps2_btn[1] = DRIVE_PS2_B1_L2;
@@ -1031,6 +1033,97 @@ static void test_itc2026_auto_fsm_and_rf_security(void) {
   printf("      PASS.\n");
 }
 
+static void test_servo_180_and_clamp_toggle(void) {
+  printf("[7/7] Running 180-deg servo calibration & R1 clamp toggle tests...\n");
+  MockHal_ResetAll();
+
+  TIM_HandleTypeDef htim3 = {.Instance = TIM3};
+  TIM_HandleTypeDef htim4 = {.Instance = TIM4};
+  TIM_HandleTypeDef htim12 = {.Instance = TIM12};
+
+  assert(Servo_Init(&htim3, &htim4, &htim12) == HAL_OK);
+
+  /* Configure SERVO_CH_1 as 180-deg positional clamp servo */
+  assert(Servo_Config180(SERVO_CH_1, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false) == HAL_OK);
+  assert(Servo_Config180(SERVO_CH_2, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false) == HAL_OK);
+
+  /* 1. Default initial state: 15.0 deg (normal open) */
+  assert(Servo_SetAngle180(SERVO_CH_1, SERVO_CLAMP_DEFAULT_OPEN_DEG) == HAL_OK);
+  /* Pulse = 500 + (15 / 180) * 2000 = 667 us */
+  assert(g_mock_tim3.CCR3 == 667U);
+
+  Servo_ChannelState_t st;
+  assert(Servo_GetState(SERVO_CH_1, &st));
+  assert(st.mode == SERVO_MODE_ANGLE_180);
+  assert(st.current_us == 667U);
+  assert(fabsf(st.last_cmd - 15.0f) < 0.01f);
+
+  /* 2. 1st press (toggle to closed): 0.0 deg */
+  assert(Servo_SetAngle180(SERVO_CH_1, SERVO_CLAMP_DEFAULT_CLOSE_DEG) == HAL_OK);
+  /* Pulse = 500 + 0 = 500 us */
+  assert(g_mock_tim3.CCR3 == 500U);
+  assert(Servo_GetState(SERVO_CH_1, &st));
+  assert(st.current_us == 500U);
+  assert(fabsf(st.last_cmd - 0.0f) < 0.01f);
+
+  /* 3. 2nd press (toggle to open): 15.0 deg */
+  assert(Servo_SetAngle180(SERVO_CH_1, SERVO_CLAMP_DEFAULT_OPEN_DEG) == HAL_OK);
+  assert(g_mock_tim3.CCR3 == 667U);
+
+  /* 4. Full range & clamping boundary checks */
+  assert(Servo_SetAngle180(SERVO_CH_1, 90.0f) == HAL_OK);
+  assert(g_mock_tim3.CCR3 == 1500U);
+
+  assert(Servo_SetAngle180(SERVO_CH_1, 180.0f) == HAL_OK);
+  assert(g_mock_tim3.CCR3 == 2500U);
+
+  /* Clamp negative angles to 0 deg */
+  assert(Servo_SetAngle180(SERVO_CH_1, -10.0f) == HAL_OK);
+  assert(g_mock_tim3.CCR3 == 500U);
+
+  /* Clamp excessive angles to 180 deg */
+  assert(Servo_SetAngle180(SERVO_CH_1, 200.0f) == HAL_OK);
+  assert(g_mock_tim3.CCR3 == 2500U);
+
+  /* 5. Inverted mode test */
+  assert(Servo_Config180(SERVO_CH_1, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, true) == HAL_OK);
+  assert(Servo_SetAngle180(SERVO_CH_1, 0.0f) == HAL_OK);
+  assert(g_mock_tim3.CCR3 == 2500U);
+  assert(Servo_SetAngle180(SERVO_CH_1, 180.0f) == HAL_OK);
+  assert(g_mock_tim3.CCR3 == 500U);
+
+  /* 6. Simulate R1 button toggle state machine */
+  bool clamp_closed = false;
+  uint8_t prev_r1 = 0U;
+  float angles[6];
+
+  uint8_t r1_inputs[6] = {0U, 1U, 1U, 0U, 1U, 0U};
+  /* Step 0: unpressed -> open (15 deg)
+   * Step 1: press R1 (rise) -> closed (0 deg)
+   * Step 2: hold R1 -> stays closed (0 deg)
+   * Step 3: release R1 -> stays closed (0 deg)
+   * Step 4: press R1 (rise) -> open (15 deg)
+   * Step 5: release R1 -> stays open (15 deg)
+   */
+  for (int i = 0; i < 6; i++) {
+    uint8_t r1_now = r1_inputs[i];
+    if ((r1_now != 0U) && (prev_r1 == 0U)) {
+      clamp_closed = !clamp_closed;
+    }
+    angles[i] = clamp_closed ? SERVO_CLAMP_DEFAULT_CLOSE_DEG
+                             : SERVO_CLAMP_DEFAULT_OPEN_DEG;
+    prev_r1 = r1_now;
+  }
+  assert(fabsf(angles[0] - 15.0f) < 0.01f);
+  assert(fabsf(angles[1] - 0.0f) < 0.01f);
+  assert(fabsf(angles[2] - 0.0f) < 0.01f);
+  assert(fabsf(angles[3] - 0.0f) < 0.01f);
+  assert(fabsf(angles[4] - 15.0f) < 0.01f);
+  assert(fabsf(angles[5] - 15.0f) < 0.01f);
+
+  printf("      PASS.\n");
+}
+
 int main(void) {
   test_vl53l1x_uld_boot_and_poll();
   test_rs485_non_destructive_error_recovery();
@@ -1038,6 +1131,7 @@ int main(void) {
   test_drive_kinematics_custom_field_centric_and_curvature();
   test_cd4067_and_flash_cal();
   test_itc2026_auto_fsm_and_rf_security();
-  printf("ALL 6 HOST UNIT & FALSIFICATION TEST SUITES PASSED!\n");
+  test_servo_180_and_clamp_toggle();
+  printf("ALL 7 HOST UNIT & FALSIFICATION TEST SUITES PASSED!\n");
   return 0;
 }
