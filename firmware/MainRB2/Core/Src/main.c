@@ -133,7 +133,8 @@ volatile int32_t g_pidboard_vel_kp_m =
 volatile int32_t g_pidboard_vel_ki_m =
     2000; /* Live-tunable PidBoard inner vel Ki (milli-units), eliminates
              stick-slip windup */
-volatile uint8_t g_imu_save_cal = 0U; /* 1 = Save DCD to BNO08x internal Flash */
+volatile uint8_t g_imu_save_cal =
+    0U; /* 1 = Save DCD to BNO08x internal Flash */
 volatile uint8_t g_imu_clear_cal =
     0U; /* 1 = Clear DCD & reset BNO08x to recalibrate */
 volatile uint32_t g_imu_cal_saved_cnt = 0U;
@@ -406,7 +407,8 @@ int main(void) {
     g_rear_error = CD4067_GetRearError();
     CD4067_UpdateLeds(now_ms);
 
-    /* 6. Execute pending BNO08x DCD Save / Clear (triggered by Live Expressions) */
+    /* 6. Execute pending BNO08x DCD Save / Clear (triggered by Live
+     * Expressions) */
     if ((g_imu_save_cal != 0U) && g_imu.connected && (g_imu.chip_id == 0x85U)) {
       g_imu_save_cal = 0U;
       if (BNO08X_SaveCalibration(&hi2c3, g_imu.i2c_addr)) {
@@ -425,8 +427,9 @@ int main(void) {
       }
     }
 
-    /* 7. Poll IMU at 100 Hz (10 ms) IMMEDIATELY BEFORE autonomous FSM/kinematics so
-     * heading uses a fresh yaw sample (eliminates 10 ms stale-sample lag) */
+    /* 7. Poll IMU at 100 Hz (10 ms) IMMEDIATELY BEFORE autonomous
+     * FSM/kinematics so heading uses a fresh yaw sample (eliminates 10 ms
+     * stale-sample lag) */
     if ((uint32_t)(now_ms - g_last_imu_tick_ms) >= 10U) {
       g_last_imu_tick_ms = now_ms;
       if (g_imu.connected) {
@@ -550,7 +553,8 @@ int main(void) {
       /* Auto-broadcast anti-stick-slip inner velocity PID gains to both
        * PidBoards over RS-485:
        *  - Immediately whenever any PidBoard powers on / comes online
-       *  - Immediately when g_pidboard_vel_kp_m / ki_m change in Live Expressions
+       *  - Immediately when g_pidboard_vel_kp_m / ki_m change in Live
+       * Expressions
        *  - Periodically every 3s while stopped */
       static bool s_prev_wheel_alive[DRIVE_DIFF_WHEEL_COUNT] = {false};
       static uint32_t s_pid_last_sync_ms = 0U;
