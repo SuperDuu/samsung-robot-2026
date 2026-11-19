@@ -36,7 +36,69 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+typedef struct
+{
+  /* 1. TDK (HC-12 Remote Control) */
+  struct {
+    uint8_t  connected;        /* 1 = live link, 0 = lost */
+    uint8_t  joy_y;            /* raw joy Y (0..200, center 100) */
+    uint8_t  joy_x;            /* raw joy X (0..200, center 100) */
+    float    target_y;         /* Joy Y: -100.0f .. +100.0f */
+    float    target_x;         /* Joy X: -100.0f .. +100.0f */
+    uint8_t  btn1;             /* du.button[1]: 8 action buttons / combos (120, 121...) */
+    uint8_t  btn0;             /* du.button[0]: D-pad buttons */
+    uint8_t  cnt;              /* rolling counter (0..249) */
+    uint32_t last_rx_ms;       /* timestamp of last received frame */
+    uint32_t rx_packet_count;  /* total valid frames received */
+  } tdk;
 
+  /* 2. RS-485 Motor Bus */
+  struct {
+    uint8_t  tx_cnt;           /* rolling watchdog counter sent to PID boards (0..255..0) */
+    uint8_t  gain_db;          /* speed multiplier (db - 7) */
+    uint8_t  motor_cmd[4];     /* raw bytes sent to 4 wheel PID boards (0..200, center 100) */
+    int16_t  motor_rpm[4];     /* target RPM for 4 wheels */
+    uint8_t  lift_cmd;         /* lift motor command (0..200, center 100) */
+    uint32_t last_tx_ms;       /* timestamp of last RS-485 broadcast */
+  } rs485;
+
+  /* 3. IMU (BNO055 / BNO08x) */
+  struct {
+    uint8_t connected;
+    float   yaw;               /* current yaw in degrees (-180..+180) */
+    float   roll;
+    float   pitch;
+    float   target_heading;    /* field-centric reference */
+  } imu;
+
+  /* 4. Line Sensors (CD4067 16-channel ADC) */
+  struct {
+    uint16_t adc_raw[16];      /* Raw 12-bit ADC values (0..4095) for all 16 channels */
+    uint16_t active_mask;      /* Bitmask of channels seeing line */
+    uint8_t  active_count;     /* Number of active sensors */
+    int16_t  line_error;       /* Centroid position / error */
+  } line;
+
+  /* 5. Board Inputs / States */
+  struct {
+    uint8_t sw1;               /* SW1 button state */
+    uint8_t sw2;               /* SW2 button state */
+    uint8_t blue_side;         /* 1 = blue side, 0 = red side */
+  } board;
+
+  /* 6. Servo Test (TIM12_CH2 / SERVO_CH_4) */
+  struct {
+    uint8_t  cmd;              /* 0 = Stop, 1 = Forward (+speed%), 2 = Reverse (-speed%) */
+    int8_t   speed_pct;        /* Speed % (default 60, configurable 1..100) */
+    uint16_t pulse_us;         /* Current PWM pulse width in microseconds */
+  } servo;
+
+} Robot_Debug_t;
+
+extern Robot_Debug_t g_debug;
+extern volatile uint8_t g_servo_test_cmd;
+extern volatile uint16_t g_servo_test_pulse;
+extern volatile uint8_t g_servo_anti_stall_kick;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
