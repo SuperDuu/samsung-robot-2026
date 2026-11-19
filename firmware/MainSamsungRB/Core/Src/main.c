@@ -538,7 +538,7 @@ int main(void) {
         BNO055_IMU_ZeroYaw(&g_imu);
         g_yaw_offset_deg = 0.0f;
         Drive_OmniCtrlZeroHeading(&g_omni_ctrl);
-        now_ms = HAL_GetTick(); /* Refresh after blocking HAL_Delay(20) */
+        now_ms = HAL_GetTick();   /* Refresh after blocking HAL_Delay(20) */
         s_imu_cal_led_state = 2U; /* Trigger chasing LEDs L1..L11 */
         s_imu_cal_led_start_ms = now_ms;
       }
@@ -643,7 +643,9 @@ int main(void) {
     }
 
     float active_speed =
-        (g_debug.servo.speed_pct != 0) ? (float)g_debug.servo.speed_pct : 60.0f;
+        (g_debug.servo.speed_pct != 0) ? (float)g_debug.servo.speed_pct : 70.0f;
+
+    uint8_t servo_cmd = (g_tdk_link_ok && !g_estop_latched) ? g_tdk_cmd.ps2_btn[0] : 0U;
 
     if (g_servo_test_pulse != 0U) {
       /* Direct microsecond pulse test (e.g. 1000..2000 us) to calibrate modded
@@ -651,20 +653,35 @@ int main(void) {
       __HAL_TIM_SET_COMPARE(&htim12, TIM_CHANNEL_2, g_servo_test_pulse);
     } else if (stall_kick_active) {
       Servo_Stop(SERVO_CH_4);
+      Servo_Stop(SERVO_CH_5);
     } else if (live_cmd == 1U) {
       Servo_SetSpeed360(SERVO_CH_4, active_speed);
+      Servo_Stop(SERVO_CH_5);
     } else if (live_cmd == 2U) {
       Servo_SetSpeed360(SERVO_CH_4, -active_speed);
-    } else if (ps2_valid &&
-               ((g_tdk_cmd.ps2_btn[1] & DRIVE_PS2_B1_TRIANGLE) != 0U)) {
+      Servo_Stop(SERVO_CH_5);
+    } else if (servo_cmd == 200U) {
+      /* Right Stick UP: Servo 1 quay thuận */
       Servo_SetSpeed360(SERVO_CH_4, active_speed);
-    } else if (ps2_valid &&
-               ((g_tdk_cmd.ps2_btn[1] & DRIVE_PS2_B1_CROSS) != 0U)) {
+      Servo_Stop(SERVO_CH_5);
+    } else if (servo_cmd == 201U) {
+      /* Right Stick DOWN: Servo 1 quay ngược */
       Servo_SetSpeed360(SERVO_CH_4, -active_speed);
+      Servo_Stop(SERVO_CH_5);
+    } else if (servo_cmd == 202U) {
+      /* Right Stick LEFT: Servo 2 quay thuận */
+      Servo_Stop(SERVO_CH_4);
+      Servo_SetSpeed360(SERVO_CH_5, active_speed);
+    } else if (servo_cmd == 203U) {
+      /* Right Stick RIGHT: Servo 2 quay ngược */
+      Servo_Stop(SERVO_CH_4);
+      Servo_SetSpeed360(SERVO_CH_5, -active_speed);
     } else if (now_ms < s_test_servo_until_ms) {
       Servo_SetSpeed360(SERVO_CH_4, s_test_servo_speed);
+      Servo_Stop(SERVO_CH_5);
     } else {
       Servo_Stop(SERVO_CH_4);
+      Servo_Stop(SERVO_CH_5);
     }
 
     /* Update real-time Live Expression read-back */
@@ -776,14 +793,24 @@ int main(void) {
         }
         s_prev_wheel_alive[i] = g_wheel_alive[i];
       }
+      bool dpad_micro_active = g_tdk_link_ok &&
+                               ((g_tdk_cmd.ps2_btn[0] == 16U) || (g_tdk_cmd.ps2_btn[0] == 32U) ||
+                                (g_tdk_cmd.ps2_btn[0] == 64U) || (g_tdk_cmd.ps2_btn[0] == 128U));
+      int32_t target_ki_m = dpad_micro_active ? 0 : g_pidboard_vel_ki_m;
+
       bool idle_refresh_due =
           omni_wheels_stopped &&
           ((uint32_t)(now_ms - s_pid_last_sync_ms) >= 3000U);
-      if ((s_pid_cfg_stage == 0U) && (wheel_came_online || idle_refresh_due ||
-                                      (g_pidboard_vel_kp_m != s_sent_kp_m) ||
-                                      (g_pidboard_vel_ki_m != s_sent_ki_m))) {
-        s_pid_cfg_stage = 2U;
-        s_pid_last_sync_ms = now_ms;
+      if (s_pid_cfg_stage == 0U) {
+        if (target_ki_m != s_sent_ki_m) {
+          /* Immediate Ki switch for D-pad micro-adjustment (Ki=0 wipes integral lag) */
+          s_pid_cfg_stage = 1U;
+          s_pid_last_sync_ms = now_ms;
+        } else if (wheel_came_online || idle_refresh_due ||
+                   (g_pidboard_vel_kp_m != s_sent_kp_m)) {
+          s_pid_cfg_stage = 2U;
+          s_pid_last_sync_ms = now_ms;
+        }
       }
 
       if (s_pid_cfg_stage == 2U) {
@@ -798,10 +825,10 @@ int main(void) {
       } else if (s_pid_cfg_stage == 1U) {
         RS485_CfgCmd_t cfg = {0};
         cfg.subcmd = (uint8_t)RS485_CFG_SET_VEL_KI_M;
-        cfg.value = g_pidboard_vel_ki_m;
+        cfg.value = target_ki_m;
         if (RS485_SendCfgCmd(&g_rs485, RS485_ADDR_BCAST, &cfg, now_ms) ==
             HAL_OK) {
-          s_sent_ki_m = g_pidboard_vel_ki_m;
+          s_sent_ki_m = target_ki_m;
           s_pid_cfg_stage = 0U;
         }
       } else if (RS485_SendMultiCmd(&g_rs485, &mcmd, now_ms) == HAL_OK) {
