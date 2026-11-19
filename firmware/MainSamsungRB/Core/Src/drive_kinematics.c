@@ -382,7 +382,8 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     ctrl->diagonal_45 = false;
     cardinal_or_diag = true;
   } else if ((rise1 & DRIVE_PS2_B1_CIRCLE) != 0U) {
-    ctrl->target_heading_deg = 90.0f;
+    /* Button 32 (Circle / Right): snap to -90 deg (quay phai) */
+    ctrl->target_heading_deg = -90.0f;
     ctrl->field_axis_offset_deg =
         ctrl->pure_field_centric ? 0.0f : (ctrl->blue_side ? 90.0f : -90.0f);
     ctrl->diagonal_45 = false;
@@ -393,7 +394,8 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     ctrl->diagonal_45 = false;
     cardinal_or_diag = true;
   } else if ((rise1 & DRIVE_PS2_B1_SQUARE) != 0U) {
-    ctrl->target_heading_deg = -90.0f;
+    /* Button 128 (Square / Left): snap to +90 deg (quay trai) */
+    ctrl->target_heading_deg = 90.0f;
     ctrl->field_axis_offset_deg =
         ctrl->pure_field_centric ? 0.0f : (ctrl->blue_side ? 90.0f : -90.0f);
     ctrl->diagonal_45 = false;
