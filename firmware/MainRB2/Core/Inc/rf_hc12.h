@@ -26,6 +26,16 @@ extern "C" {
 #define RF_HC12_SOF1               0x55U
 #define RF_HC12_PROTO_VERSION      0x01U
 
+/* 6-byte ultra-fast competition frame markers (proven in RB2026_TX_PS2_NEW) */
+#define RF_6BYTE_SOF               255U /* 0xFF: Sync byte */
+#define RF_6BYTE_LEN               6U   /* [255, JoyY, JoyX, Btn1, Btn0, Cnt] */
+
+/* Ultra-compact competition frame markers (11-byte TDK packet for minimum airtime) */
+#define RF_COMPACT_SOF0            0x55U
+#define RF_COMPACT_SOF1            0xAAU
+#define RF_COMPACT_TDK_LEN         11U  /* 2 SOF + 1 ID + 7 Data + 1 CRC-8 */
+#define RF_COMPACT_AUTO_LEN        18U  /* 2 SOF + 1 ID + 14 Data + 1 CRC-8 */
+
 #define RF_HC12_HEADER_SIZE        8U
 #define RF_HC12_CRC_SIZE           2U
 #define RF_HC12_MAX_PAYLOAD        16U
@@ -34,6 +44,7 @@ extern "C" {
 
 #define RF_HC12_DEFAULT_CHANNEL    59U
 #define RF_HC12_DEFAULT_BAUD       115200U
+#define RF_HC12_DEFAULT_POWER      8U
 #define RF_HC12_DEFAULT_TIMEOUT_MS 250U
 
 typedef enum
@@ -136,6 +147,7 @@ typedef struct RF_HC12_s
   uint8_t              at_found;
   uint8_t              at_configured;
   uint32_t             at_detected_baud;
+  char                 at_resp[48];
   uint32_t             last_rx_tick_ms;
   uint8_t              has_ever_rx;
   uint8_t              rx_updated;
@@ -158,6 +170,10 @@ HAL_StatusTypeDef RF_HC12_SendAT(RF_HC12_t *rf,
                                  const char *cmd,
                                  const char *expected,
                                  uint32_t timeout_ms);
+
+/* Configures channel (RF address) + transmit power (P1..P8) + target_baud + FU3 mode,
+ * and ALWAYS restores UART to target_baud (default 115200U) before returning. */
+bool RF_HC12_SetAddress(RF_HC12_t *rf, uint8_t channel, uint8_t power, uint32_t target_baud);
 
 /* Scans common baud rates (9600 first), configures channel + P8 + target_baud if /SET is LOW,
  * and ALWAYS restores UART to target_baud (default 115200U) before returning. */
@@ -189,6 +205,7 @@ bool RF_HC12_DecodeTdkCmd(const RF_Frame_t *frame, RF_PayloadTdk_t *out_cmd);
 bool RF_HC12_DecodeManualToAuto(const RF_Frame_t *frame, RF_PayloadManualToAuto_t *out_msg);
 
 uint16_t RF_HC12_Crc16Ccitt(const uint8_t *data, uint16_t len);
+uint8_t  RF_HC12_Crc8(const uint8_t *data, uint16_t len);
 
 #ifdef __cplusplus
 }
