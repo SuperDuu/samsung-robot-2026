@@ -26,7 +26,10 @@ extern "C" {
 #define SERVO_PWM_MIN_US               500U
 #define SERVO_PWM_NEUTRAL_US           1500U
 #define SERVO_PWM_MAX_US               2500U
+#define SERVO_180_MAX_DEG              180.0f
 #define SERVO_270_MAX_DEG              270.0f
+#define SERVO_CLAMP_DEFAULT_OPEN_DEG   15.0f
+#define SERVO_CLAMP_DEFAULT_CLOSE_DEG  0.0f
 #define SERVO_360_DEFAULT_HALF_SPAN_US 500U   /* 1000..2000 us continuous range (pass 1000 for 500..2500 us) */
 #define SERVO_DEFAULT_DEADBAND_PCT     2.0f
 
@@ -45,7 +48,8 @@ typedef enum
 {
   SERVO_MODE_UNCONFIGURED   = 0U,
   SERVO_MODE_ANGLE_270      = 1U,
-  SERVO_MODE_CONTINUOUS_360 = 2U
+  SERVO_MODE_CONTINUOUS_360 = 2U,
+  SERVO_MODE_ANGLE_180      = 3U
 } Servo_Mode_t;
 
 typedef struct
@@ -70,6 +74,11 @@ HAL_StatusTypeDef Servo_Config270(Servo_Channel_t ch,
                                   uint16_t max_us,
                                   bool inverted);
 
+HAL_StatusTypeDef Servo_Config180(Servo_Channel_t ch,
+                                  uint16_t min_us,
+                                  uint16_t max_us,
+                                  bool inverted);
+
 HAL_StatusTypeDef Servo_Config360(Servo_Channel_t ch,
                                   uint16_t neutral_us,
                                   uint16_t half_span_us,
@@ -78,6 +87,9 @@ HAL_StatusTypeDef Servo_Config360(Servo_Channel_t ch,
 
 /* Mode 1: Positional 0.0 .. 270.0 degrees (linearly mapped to min_us..max_us) */
 HAL_StatusTypeDef Servo_SetAngle270(Servo_Channel_t ch, float angle_deg);
+
+/* Mode 3: Positional 0.0 .. 180.0 degrees (linearly mapped to min_us..max_us) */
+HAL_StatusTypeDef Servo_SetAngle180(Servo_Channel_t ch, float angle_deg);
 
 /* Mode 2: Continuous 360 rotation (-100.0% CCW .. 0.0% stop .. +100.0% CW) */
 HAL_StatusTypeDef Servo_SetSpeed360(Servo_Channel_t ch, float speed_pct);
