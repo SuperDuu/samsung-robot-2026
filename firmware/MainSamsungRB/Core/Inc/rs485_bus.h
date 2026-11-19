@@ -42,7 +42,7 @@ extern "C" {
 #define RS485_ADDR_BCAST            0xFFU
 
 #define RS485_MAX_WHEELS            4U
-#define RS485_CMD_WATCHDOG_MS       250U
+#define RS485_CMD_WATCHDOG_MS       750U   /* < 1s watchdog (750 ms) to prevent runaway while avoiding overreaction */
 #define RS485_SLAVE_TURNAROUND_MS   2U   /* >= 1.0 ms real bus-idle gap despite 1 ms SysTick quantization */
 #define RS485_TX_WATCHDOG_MS        20U
 
@@ -163,6 +163,10 @@ typedef struct
   uint32_t rejected_src_frames;
   uint32_t rejected_dst_frames;
   uint32_t uart_err_recoveries;
+  uint32_t uart_ore_errors;
+  uint32_t uart_fe_errors;
+  uint32_t uart_ne_errors;
+  uint32_t uart_pe_errors;
   uint32_t tx_wdog_recoveries;
 } RS485_Stats_t;
 
