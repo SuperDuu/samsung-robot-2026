@@ -207,10 +207,26 @@ int main(void) {
         cmd.joy_sum[1] = du.data[1];
         cmd.joy_left[0] = du.data2[0];
         cmd.joy_left[1] = du.data2[1];
-        cmd.ps2_btn[0] = du.button[0];
+        uint8_t btn0 = du.button[0];
         if (btn_pressed != 0U) {
-          cmd.ps2_btn[0] |= (1U << 3); /* START button bit */
+          btn0 |= (1U << 3); /* START button bit */
         }
+        /* Right Stick (du.data2) overrides tx_buf[4] with special servo command codes:
+         * 200: Right Stick UP (<20)    -> Servo 1 quay thuận
+         * 201: Right Stick DOWN (>80)  -> Servo 1 quay ngược
+         * 202: Right Stick LEFT (<20)  -> Servo 2 quay thuận
+         * 203: Right Stick RIGHT (>80) -> Servo 2 quay ngược
+         */
+        if (du.data2[0] < 20U) {
+          btn0 = 200U;
+        } else if (du.data2[0] > 80U) {
+          btn0 = 201U;
+        } else if (du.data2[1] < 20U) {
+          btn0 = 202U;
+        } else if (du.data2[1] > 80U) {
+          btn0 = 203U;
+        }
+        cmd.ps2_btn[0] = btn0;
         cmd.ps2_btn[1] = du.button[1];
         cmd.ext_sw = (sw_pressed ? RF_TDK_EXT_SW_BIT : 0U) |
                      (btn_pressed ? RF_TDK_EXT_BUTTON_BIT : 0U) |
