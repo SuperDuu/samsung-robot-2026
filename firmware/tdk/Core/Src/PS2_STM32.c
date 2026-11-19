@@ -152,15 +152,18 @@ void PS2_Update(void)
     return;
   }
 
-  uint8_t Joystick[2];
-  Joystick[0] = (uint8_t)((map(receive[8], 0, 255, 0, 100) + map(receive[6], 0, 255, 0, 100)));
-  Joystick[1] = (uint8_t)(map(receive[7], 0, 255, 0, 100) + map(receive[5], 0, 255, 0, 100));
+  /* Left Stick controls robot translation (du.data) independently:
+   * full 0..200 range with center 100 (du.data2 is NO LONGER added!) */
+  data->data[0]   = (uint8_t)map(receive[8], 0, 255, 0, 200);
+  data->data[1]   = (uint8_t)(200 - map(receive[7], 0, 255, 0, 200));
 
+  /* Right Stick controls two 360 servos (du.data2, 0..100, neutral 50):
+   * data2[0] (receive[6], RY): <20 = UP (forward), >80 = DOWN (reverse), 50 = neutral
+   * data2[1] (receive[5], RX): <20 = LEFT (forward), >80 = RIGHT (reverse), 50 = neutral
+   */
   data->data2[0]  = (uint8_t)map(receive[6], 0, 255, 0, 100);
   data->data2[1]  = (uint8_t)map(receive[5], 0, 255, 0, 100);
   data->address   = 255U;
-  data->data[0]   = Joystick[0];
-  data->data[1]   = 200-Joystick[1];
   data->button[0] = buttonStatus[0];
   data->button[1] = buttonStatus[1];
 }
