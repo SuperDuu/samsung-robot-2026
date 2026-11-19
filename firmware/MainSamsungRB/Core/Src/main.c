@@ -152,6 +152,8 @@ volatile uint32_t g_imu_cal_cleared_cnt =
 static float g_yaw_offset_deg = 0.0f;
 static uint8_t g_prev_select_btn = 0U;
 static uint8_t g_prev_l3_btn = 0U;
+static uint8_t g_prev_r1_btn = 0U;
+static bool g_clamp_closed = false;
 static bool g_estop_latched = false;
 static bool g_clear_faults_pending = false;
 static uint32_t g_last_imu_tick_ms = 0U;
@@ -337,8 +339,9 @@ int main(void) {
   if (Servo_Init(&htim3, &htim4, &htim12) != HAL_OK) {
     Error_Handler();
   }
-  (void)Servo_Config270(SERVO_CH_1, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false);
-  (void)Servo_Config270(SERVO_CH_2, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false);
+  /* Configure Gripper Clamp: 180 deg servo on CH1 (J2) and CH2 (J34) */
+  (void)Servo_Config180(SERVO_CH_1, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false);
+  (void)Servo_Config180(SERVO_CH_2, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false);
   (void)Servo_Config270(SERVO_CH_3, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false);
   (void)Servo_Config360(SERVO_CH_4, SERVO_PWM_NEUTRAL_US,
                         SERVO_360_DEFAULT_HALF_SPAN_US,
@@ -349,6 +352,15 @@ int main(void) {
   (void)Servo_Config360(SERVO_CH_6, SERVO_PWM_NEUTRAL_US,
                         SERVO_360_DEFAULT_HALF_SPAN_US,
                         SERVO_DEFAULT_DEADBAND_PCT, false);
+  /* Initial clamp state: normal 15 deg (open) */
+  (void)Servo_SetAngle180(SERVO_CH_1, SERVO_CLAMP_DEFAULT_OPEN_DEG);
+  (void)Servo_SetAngle180(SERVO_CH_2, SERVO_CLAMP_DEFAULT_OPEN_DEG);
+  g_debug.clamp.closed = 0U;
+  g_debug.clamp.angle_deg = SERVO_CLAMP_DEFAULT_OPEN_DEG;
+  Servo_ChannelState_t clamp_init_st;
+  if (Servo_GetState(SERVO_CH_1, &clamp_init_st)) {
+    g_debug.clamp.pulse_us = clamp_init_st.current_us;
+  }
   g_debug.servo.speed_pct = 60;
 
   /* Half-duplex RS-485 Master on USART2 + PA1 RE/DE for 4 omni PidBoards
@@ -474,6 +486,8 @@ int main(void) {
           ((g_tdk_cmd.ps2_btn[0] & DRIVE_PS2_B0_L3) != 0U) ? 1U : 0U;
       uint8_t select_now =
           ((g_tdk_cmd.ps2_btn[0] & DRIVE_PS2_B0_SELECT) != 0U) ? 1U : 0U;
+      uint8_t r1_now =
+          ((g_tdk_cmd.ps2_btn[1] & DRIVE_PS2_B1_R1) != 0U) ? 1U : 0U;
       Drive_OmniCtrlSetBlueSide(&g_omni_ctrl,
                                 (g_tdk_cmd.ext_sw & RF_TDK_EXT_SW_BIT) == 0U);
       if ((l3_now != 0U) && (g_prev_l3_btn == 0U) && g_imu.connected) {
@@ -484,8 +498,19 @@ int main(void) {
       if ((select_now != 0U) && (g_prev_select_btn == 0U)) {
         MainSamsungRB_ClearWheelFaults();
       }
+      if ((r1_now != 0U) && (g_prev_r1_btn == 0U)) {
+        /* R1 toggle: 1st press closes clamp (0 deg), 2nd press reopens (15 deg) */
+        g_clamp_closed = !g_clamp_closed;
+        float clamp_angle = g_clamp_closed ? SERVO_CLAMP_DEFAULT_CLOSE_DEG
+                                           : SERVO_CLAMP_DEFAULT_OPEN_DEG;
+        (void)Servo_SetAngle180(SERVO_CH_1, clamp_angle);
+        (void)Servo_SetAngle180(SERVO_CH_2, clamp_angle);
+        g_debug.clamp.closed = g_clamp_closed ? 1U : 0U;
+        g_debug.clamp.angle_deg = clamp_angle;
+      }
       g_prev_l3_btn = l3_now;
       g_prev_select_btn = select_now;
+      g_prev_r1_btn = r1_now;
 
       /* BNO085 9-DOF Flash calibration buttons (tx_buf[4] = ps2_btn[0]):
        *  - Hold SELECT (1) alone >= 1.0s -> Save DCD into BNO085 internal Flash
@@ -527,6 +552,7 @@ int main(void) {
     } else {
       g_prev_l3_btn = 0U;
       g_prev_select_btn = 0U;
+      g_prev_r1_btn = 0U;
     }
 
     /* Execute pending BNO08x DCD Save / Clear (triggered by SELECT/START hold
@@ -690,6 +716,22 @@ int main(void) {
       g_debug.servo.pulse_us = g_servo_test_pulse;
     } else if (Servo_GetState(SERVO_CH_4, &s_state)) {
       g_debug.servo.pulse_us = s_state.current_us;
+    }
+
+    /* Synchronize Live Expressions clamp debug override & read-back */
+    static uint8_t s_prev_dbg_clamp_closed = 0U;
+    if (g_debug.clamp.closed != s_prev_dbg_clamp_closed) {
+      g_clamp_closed = (g_debug.clamp.closed != 0U);
+      s_prev_dbg_clamp_closed = g_debug.clamp.closed;
+      float clamp_angle = g_clamp_closed ? SERVO_CLAMP_DEFAULT_CLOSE_DEG
+                                         : SERVO_CLAMP_DEFAULT_OPEN_DEG;
+      (void)Servo_SetAngle180(SERVO_CH_1, clamp_angle);
+      (void)Servo_SetAngle180(SERVO_CH_2, clamp_angle);
+      g_debug.clamp.angle_deg = clamp_angle;
+    }
+    Servo_ChannelState_t clamp_st;
+    if (Servo_GetState(SERVO_CH_1, &clamp_st)) {
+      g_debug.clamp.pulse_us = clamp_st.current_us;
     }
 
     /* 4. Poll IMU at 100 Hz (10 ms) IMMEDIATELY BEFORE omni kinematics so

@@ -145,6 +145,47 @@ HAL_StatusTypeDef Servo_Config270(Servo_Channel_t ch,
   return HAL_OK;
 }
 
+HAL_StatusTypeDef Servo_Config180(Servo_Channel_t ch,
+                                  uint16_t min_us,
+                                  uint16_t max_us,
+                                  bool inverted)
+{
+  if (!s_servo.initialized || ((uint8_t)ch >= (uint8_t)SERVO_NUM_CHANNELS) ||
+      (s_servo.hw[ch].htim == NULL))
+  {
+    return HAL_ERROR;
+  }
+
+  if (min_us == 0U)
+  {
+    min_us = SERVO_PWM_MIN_US;
+  }
+  if (max_us == 0U)
+  {
+    max_us = SERVO_PWM_MAX_US;
+  }
+  if (min_us < SERVO_PWM_MIN_US)
+  {
+    min_us = SERVO_PWM_MIN_US;
+  }
+  if (max_us > SERVO_PWM_MAX_US)
+  {
+    max_us = SERVO_PWM_MAX_US;
+  }
+  if (min_us >= max_us)
+  {
+    return HAL_ERROR;
+  }
+
+  s_servo.ch[ch].mode = SERVO_MODE_ANGLE_180;
+  s_servo.ch[ch].min_us = min_us;
+  s_servo.ch[ch].neutral_us = (uint16_t)((min_us + max_us) / 2U);
+  s_servo.ch[ch].max_us = max_us;
+  s_servo.ch[ch].deadband_pct = 0.0f;
+  s_servo.ch[ch].inverted = inverted;
+  return HAL_OK;
+}
+
 HAL_StatusTypeDef Servo_Config360(Servo_Channel_t ch,
                                   uint16_t neutral_us,
                                   uint16_t half_span_us,
@@ -234,6 +275,38 @@ HAL_StatusTypeDef Servo_SetAngle270(Servo_Channel_t ch, float angle_deg)
   float eff = s_servo.ch[ch].inverted ? (SERVO_270_MAX_DEG - angle_deg) : angle_deg;
   float span = (float)(s_servo.ch[ch].max_us - s_servo.ch[ch].min_us);
   uint16_t pulse_us = servo_round_to_u16((float)s_servo.ch[ch].min_us + (eff / SERVO_270_MAX_DEG) * span);
+
+  s_servo.ch[ch].last_cmd = angle_deg;
+  return servo_apply_us(ch, pulse_us);
+}
+
+HAL_StatusTypeDef Servo_SetAngle180(Servo_Channel_t ch, float angle_deg)
+{
+  if (!s_servo.initialized || ((uint8_t)ch >= (uint8_t)SERVO_NUM_CHANNELS))
+  {
+    return HAL_ERROR;
+  }
+  if (s_servo.ch[ch].mode != SERVO_MODE_ANGLE_180)
+  {
+    return HAL_ERROR;
+  }
+  if (!isfinite(angle_deg))
+  {
+    return HAL_ERROR;
+  }
+
+  if (angle_deg < 0.0f)
+  {
+    angle_deg = 0.0f;
+  }
+  else if (angle_deg > SERVO_180_MAX_DEG)
+  {
+    angle_deg = SERVO_180_MAX_DEG;
+  }
+
+  float eff = s_servo.ch[ch].inverted ? (SERVO_180_MAX_DEG - angle_deg) : angle_deg;
+  float span = (float)(s_servo.ch[ch].max_us - s_servo.ch[ch].min_us);
+  uint16_t pulse_us = servo_round_to_u16((float)s_servo.ch[ch].min_us + (eff / SERVO_180_MAX_DEG) * span);
 
   s_servo.ch[ch].last_cmd = angle_deg;
   return servo_apply_us(ch, pulse_us);
