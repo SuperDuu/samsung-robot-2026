@@ -352,6 +352,7 @@ uint8_t PID_HandleConfigSubcmd(PID_Controller_t *ctrl,
       return 1U;
     }
     ctrl->cfg.vel_ki_m = cmd->value;
+    ctrl->vel_int_err_ms = 0; /* Instantly clear accumulated integral error */
     return 0U;
 
   case RS485_CFG_SET_VEL_KD_M:
