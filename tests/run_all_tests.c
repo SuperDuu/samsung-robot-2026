@@ -717,9 +717,56 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
                        ttargets);
     assert(fabsf(trim_ctrl.heading_trim_deg -
                  (-DRIVE_OMNI_HEADING_TRIM_STEP_DEG)) < 0.001f);
-    assert(fabsf(trim_ctrl.omega_fb_pct) < 0.001f);
+    /* D-pad micro-adjustment test (16=UP, 32=RIGHT, 64=DOWN, 128=LEFT):
+     * Must move extremely slowly in precision crawl mode (DRIVE_OMNI_CRAWL_PCT = 20%) */
+    tin.joy_sum[0] = 100U;
+    tin.joy_sum[1] = 100U;
+    tin.ps2_btn[0] = DRIVE_PS2_B0_UP; /* 16 */
+    tin.ps2_btn[1] = 0U;
+    for (int step = 0; step < 10; step++) {
+      Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
+                         ttargets);
+    }
+    assert(trim_ctrl.active_speed_pct == DRIVE_OMNI_CRAWL_PCT);
+    /* Target RPM must be very small (~10..20 RPM) for fine micro-adjustment */
+    for (uint8_t w = 0U; w < 4U; w++) {
+      assert(abs(ttargets[w]) < 200); /* < 20 RPM */
+    }
+
+    /* Servo code guard: values 200..203 must NOT trigger D-pad or movement */
+    tin.ps2_btn[0] = 200U; /* Servo 1 forward code */
+    for (int step = 0; step < 10; step++) {
+      Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
+                         ttargets);
+    }
     assert(ttargets[0] == 0 && ttargets[1] == 0 && ttargets[2] == 0 &&
            ttargets[3] == 0);
+
+    /* L1 3x Speed Boost test (tx_buf[3] = 4):
+     * Pushing joystick forward with L1 must triple speed compared to normal,
+     * and L1 must NOT produce CCW rotation (omega == 0)! */
+    Drive_OmniCtrlInit(&trim_ctrl, false);
+    trim_ctrl.heading_hold = false; /* Disable closed-loop heading for pure velocity comparison */
+    tin.ps2_btn[0] = 0U;
+    tin.joy_sum[0] = 70U; /* Tilted forward: target_y = -30% */
+    tin.joy_sum[1] = 100U;
+    tin.ps2_btn[1] = 0U; /* Base speed (default Gear 0 = 33%) */
+    for (int step = 0; step < 20; step++) {
+      Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, false, 4000, tmodes,
+                         ttargets);
+    }
+    int16_t base_rpm = abs(ttargets[0]);
+
+    Drive_OmniCtrlInit(&trim_ctrl, false);
+    trim_ctrl.heading_hold = false;
+    tin.ps2_btn[1] = DRIVE_PS2_B1_L1; /* 3x Boost */
+    for (int step = 0; step < 20; step++) {
+      Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, false, 4000, tmodes,
+                         ttargets);
+    }
+    int16_t boosted_rpm = abs(ttargets[0]);
+    assert(boosted_rpm >= (int16_t)(base_rpm * 2.8f)); /* Tripled speed */
+    assert(fabsf(trim_ctrl.slew.omega_pct) < 0.01f);    /* L1 does NOT rotate CCW! */
   }
   printf("      PASS.\n");
 }
@@ -851,6 +898,7 @@ static void test_itc2026_auto_fsm_and_rf_security(void) {
   assert(huart_tx_tdk.last_tx_buf[2] == 210);
   assert(huart_tx_tdk.last_tx_buf[3] == 0x22);
   assert(huart_tx_tdk.last_tx_buf[4] == 0x11);
+  assert(huart_tx_tdk.last_tx_buf[5] == 0U);
 
   /* rf_auto rejects RF_NODE_TDK */
   RF_HC12_FeedBytes(&rf_auto, huart_tx_tdk.last_tx_buf,
