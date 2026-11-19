@@ -451,14 +451,14 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
   Drive_OmniCtrlStep(&ctrl, &in, false, 359.0f, true, 4000, modes, targets);
   assert(ctrl.omega_fb_pct > 0.0f && ctrl.omega_fb_pct <= 5.0f);
 
-  /* Custom axis snaps: CIRCLE -> target=+90, offset=+90 (Blue) vs -90 (Red) */
-  in.ps2_btn[1] = DRIVE_PS2_B1_CIRCLE;
+  /* Custom axis snaps: SQUARE (128) -> target=+90 (quay trai), CIRCLE (32) -> target=-90 (quay phai) */
+  in.ps2_btn[1] = DRIVE_PS2_B1_SQUARE;
   Drive_OmniCtrlStep(&ctrl, &in, false, 90.0f, true, 4000, modes, targets);
   assert(fabsf(ctrl.target_heading_deg - 90.0f) < 0.01f);
   assert(fabsf(ctrl.field_axis_offset_deg - 90.0f) < 0.01f);
 
   Drive_OmniCtrlSetBlueSide(&ctrl, false);
-  in.ps2_btn[1] = DRIVE_PS2_B1_SQUARE;
+  in.ps2_btn[1] = DRIVE_PS2_B1_CIRCLE;
   Drive_OmniCtrlStep(&ctrl, &in, false, -90.0f, true, 4000, modes, targets);
   assert(fabsf(ctrl.target_heading_deg - (-90.0f)) < 0.01f);
   assert(fabsf(ctrl.field_axis_offset_deg - (-90.0f)) < 0.01f);
@@ -541,7 +541,7 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
     Drive_OmniCtrlInit(&c_fc, true);
     c_fc.pure_field_centric = true;
     Drive_Ps2Input_t fc_in = {.joy_sum = {100U, 100U}, .valid = true};
-    fc_in.ps2_btn[1] = DRIVE_PS2_B1_CIRCLE;
+    fc_in.ps2_btn[1] = DRIVE_PS2_B1_SQUARE; /* 128: snap to 90 deg (quay trai) */
     Drive_OmniCtrlStep(&c_fc, &fc_in, false, 90.0f, true, 4000, m_lo, t_lo);
     assert(fabsf(c_fc.target_heading_deg - 90.0f) < 0.01f);
     assert(fabsf(c_fc.field_axis_offset_deg) < 0.01f);
