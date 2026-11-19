@@ -218,14 +218,12 @@ void Drive_OmniComputeFromPs2(Drive_OmniState_t *state,
   bool boost_3x = (in->ps2_btn[1] & DRIVE_PS2_B1_L1) != 0U; /* tx_buf[3] = 4: 3x speed boost */
   bool l2 = (in->ps2_btn[1] & DRIVE_PS2_B1_L2) != 0U;
   bool r2 = (in->ps2_btn[1] & DRIVE_PS2_B1_R2) != 0U;
-  bool r1 = (in->ps2_btn[1] & DRIVE_PS2_B1_R1) != 0U;
+  /* Note: R1 is dedicated to gripper clamp toggle (180 deg servo), NOT robot rotation */
   float target_w = 0.0f;
   if (l2 && !r2) {
     target_w = +DRIVE_OMNI_TRIM_ROT_PCT; /* 20 RPM rotate left */
   } else if (r2 && !l2) {
     target_w = -DRIVE_OMNI_TRIM_ROT_PCT; /* 20 RPM rotate right */
-  } else if (r1) {
-    target_w = +DRIVE_OMNI_OMEGA_MAX;
   }
 
   state->vx_pct = Drive_SlewRamp(state->vx_pct, target_x, DRIVE_OMNI_SLEW_ACCEL,
@@ -426,7 +424,7 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
 
   bool boost_3x = (b1 & DRIVE_PS2_B1_L1) != 0U; /* tx_buf[3] = 4: 3x speed boost */
   bool l1 = false; /* L1 is dedicated to 3x turbo boost, NOT left rotation */
-  bool r1 = (b1 & DRIVE_PS2_B1_R1) != 0U;
+  bool r1 = false; /* R1 is dedicated to gripper clamp toggle (180 deg servo), NOT right rotation */
   if (cardinal_or_diag || trim_rot || (!select_held && (l1 != r1))) {
     ctrl->rot_ramp_ticks = DRIVE_OMNI_HEADING_RAMP_TICKS;
     ctrl->heading_settled = false;
