@@ -15,6 +15,7 @@ DEBUG_LOG.md
 # STM32CubeIDE build outputs
 firmware/*/Debug/
 firmware/*/Release/
+firmware/workspace_headless/
 
 # Local editor settings
 .vscode/
