@@ -9,6 +9,7 @@
     "net_color_mode": 1,
     "opacity": {
       "images": 0.6,
+      "outside_group": 1.0,
       "pads": 1.0,
       "shapes": 1.0,
       "tracks": 1.0,
@@ -53,7 +54,7 @@
       "shapes",
       "board_outline_area",
       "ly_points",
-      "grid_items"
+      "via_stitching"
     ],
     "visible_layers": "ffffffff_ffffffff_fffffff5_ffffffff",
     "zone_display_mode": 0
@@ -66,7 +67,7 @@
   },
   "meta": {
     "filename": "tay_dk.kicad_prl",
-    "version": 6
+    "version": 7
   },
   "net_inspector_panel": {
     "col_hidden": [
