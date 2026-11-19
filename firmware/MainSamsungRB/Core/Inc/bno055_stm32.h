@@ -5,13 +5,27 @@
   extern "C" {
 #endif
 
+#ifdef UNIT_TEST_HOST
+#include "mock_hal.h"
+#else
 #include "main.h"
+#endif
 #include "bno055.h"
+#include "bno08x.h"
 #include <stdbool.h>
 #include <stdint.h>
 
-#define BNO055_I2C_TIMEOUT_MS   20U
-#define BNO055_POR_WAIT_MS      750U
+#define BNO055_I2C_TIMEOUT_MS         25U
+#define BNO055_POR_WAIT_MS            1200U
+#define BNO055_CONSEC_ERR_LIMIT       3U
+#define BNO055_RECOVER_BACKOFF_MS     250U
+#define BNO055_CALIB_POLL_DIV         20U
+#define BNO055_DEFAULT_FUSION_MODE    BNO055_OPERATION_MODE_IMU
+#define BNO055_DRIFT_SETTLE_MS        500U
+#define BNO055_DRIFT_WINDOW_MS        1000U
+#define BNO055_DRIFT_MAX_TICK_DEG     0.35f
+#define BNO055_DRIFT_MAX_BIAS_DPS     0.60f
+#define BNO055_DRIFT_EMA_ALPHA        0.35f
 
 typedef struct
 {
@@ -32,12 +46,29 @@ typedef struct
   float                      pitch_total;
   float                      pitch_offset;
   float                      pitch;
+  bno055_opmode_t            op_mode;
   uint8_t                    i2c_addr;
   uint8_t                    chip_id;
   bool                       connected;
   bool                       initialized;
+  bool                       healthy;
+  bool                       resync_yaw_prev;
+  bool                       stationary_hint;
+  bool                       has_prev_sample_ms;
+  uint8_t                    consec_errs;
+  uint8_t                    calib_div;
   uint32_t                   ok_count;
   uint32_t                   err_count;
+  uint32_t                   recoveries;
+  uint32_t                   mode_resets;
+  uint32_t                   bias_updates;
+  uint32_t                   last_ok_ms;
+  uint32_t                   next_recover_ms;
+  uint32_t                   prev_sample_ms;
+  uint32_t                   still_ms;
+  uint32_t                   still_win_ms;
+  float                      still_raw_deg;
+  float                      yaw_bias_dps;
 } BNO055_IMU_t;
 
 extern I2C_HandleTypeDef *_bno055_i2c_port;
@@ -52,7 +83,9 @@ void bno055_writeData(uint8_t reg, uint8_t data);
 void bno055_readData(uint8_t reg, uint8_t *data, uint8_t len);
 
 /* High-level MainRB IMU wrapper (I2C3 J1, continuous 360-deg unwrap + offset tare) */
+bool BNO055_IMU_InitWithMode(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c, bno055_opmode_t op_mode);
 bool BNO055_IMU_Init(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c);
+void BNO055_IMU_SetStationaryHint(BNO055_IMU_t *imu, bool stationary);
 bool BNO055_IMU_Update(BNO055_IMU_t *imu);
 void BNO055_IMU_ZeroYaw(BNO055_IMU_t *imu);
 void BNO055_IMU_ZeroAll(BNO055_IMU_t *imu);

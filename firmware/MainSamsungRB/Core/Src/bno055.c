@@ -9,7 +9,17 @@ uint16_t eulerScale = 16;
 uint16_t magScale = 16;
 uint16_t quaScale = (1 << 14);  // 2^14
 
-void bno055_setPage(uint8_t page) { bno055_writeData(BNO055_PAGE_ID, page); }
+static uint8_t s_bno055_cached_page = 0xFFU;
+
+void bno055_invalidatePageCache(void) { s_bno055_cached_page = 0xFFU; }
+
+void bno055_setPage(uint8_t page) {
+  if (s_bno055_cached_page == page) {
+    return;
+  }
+  s_bno055_cached_page = page;
+  bno055_writeData(BNO055_PAGE_ID, page);
+}
 
 bno055_opmode_t bno055_getOperationMode(void) {
   uint8_t mode = 0;
@@ -51,8 +61,9 @@ void bno055_enableExternalCrystal(void) { bno055_setExternalCrystalUse(true); }
 void bno055_disableExternalCrystal(void) { bno055_setExternalCrystalUse(false); }
 
 void bno055_reset(void) {
+  bno055_invalidatePageCache();
   bno055_writeData(BNO055_SYS_TRIGGER, 0x20);
-  bno055_delay(700);
+  bno055_delay(750);
 }
 
 int8_t bno055_getTemp(void) {
@@ -65,16 +76,24 @@ int8_t bno055_getTemp(void) {
 void bno055_setup(void) {
   bno055_reset();
 
+  /* Wait for BNO055 internal bootloader to finish startup */
   uint8_t id = 0;
-  bno055_readData(BNO055_CHIP_ID, &id, 1);
-  (void)id;
+  for (uint8_t i = 0; i < 15; i++) {
+    bno055_setPage(0);
+    bno055_readData(BNO055_CHIP_ID, &id, 1);
+    if (id == BNO055_ID) {
+      break;
+    }
+    bno055_delay(20);
+  }
 
   bno055_setPage(0);
   bno055_writeData(BNO055_SYS_TRIGGER, 0x0);
+  bno055_delay(10);
 
   // Select BNO055 config mode
   bno055_setOperationModeConfig();
-  bno055_delay(10);
+  bno055_delay(20);
 }
 
 int16_t bno055_getSWRevision(void) {
@@ -172,13 +191,22 @@ void bno055_setCalibrationData(bno055_calibration_data_t calData) {
 }
 
 bno055_vector_t bno055_getVector(uint8_t vec) {
+  bno055_vector_t xyz = {.w = 0.0, .x = 0.0, .y = 0.0, .z = 0.0};
+  bool need_page_write = (s_bno055_cached_page != 0U);
   bno055_setPage(0);
+  if (need_page_write && !bno055_lastIoOk()) {
+    return xyz;
+  }
   uint8_t buffer[8] = {0};  // Quaternion needs 8 bytes
 
   if (vec == BNO055_VECTOR_QUATERNION)
     bno055_readData(vec, buffer, 8);
   else
     bno055_readData(vec, buffer, 6);
+
+  if (!bno055_lastIoOk()) {
+    return xyz;
+  }
 
   double scale = 1.0;
 
@@ -195,7 +223,6 @@ bno055_vector_t bno055_getVector(uint8_t vec) {
     scale = quaScale;
   }
 
-  bno055_vector_t xyz = {.w = 0.0, .x = 0.0, .y = 0.0, .z = 0.0};
   if (vec == BNO055_VECTOR_QUATERNION) {
     xyz.w = (int16_t)((buffer[1] << 8) | buffer[0]) / scale;
     xyz.x = (int16_t)((buffer[3] << 8) | buffer[2]) / scale;

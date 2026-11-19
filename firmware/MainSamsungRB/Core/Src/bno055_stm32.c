@@ -12,6 +12,7 @@
   */
 
 #include "bno055_stm32.h"
+#include <math.h>
 #include <string.h>
 
 #ifdef FREERTOS_ENABLED
@@ -37,9 +38,57 @@ static float BNO055_WrapDeltaDeg(float delta)
   return delta;
 }
 
+void bno055_invalidatePageCache(void);
+
+static void BNO055_RecoverI2C(I2C_HandleTypeDef *hi2c)
+{
+  if (hi2c == NULL)
+  {
+    return;
+  }
+  bno055_invalidatePageCache();
+#if !defined(UNIT_TEST_HOST) && (defined(STM32F405xx) || defined(STM32F4))
+  if (hi2c->Instance == I2C3)
+  {
+    /* Clock 9 SCL pulses + STOP on PA8 (SCL) / PC9 (SDA) if BNO055 stretched/stuck SDA low */
+    GPIO_InitTypeDef gpio = {0};
+    gpio.Mode  = GPIO_MODE_OUTPUT_OD;
+    gpio.Pull  = GPIO_PULLUP;
+    gpio.Speed = GPIO_SPEED_FREQ_HIGH;
+
+    HAL_I2C_DeInit(hi2c);
+    gpio.Pin = GPIO_PIN_8;
+    HAL_GPIO_Init(GPIOA, &gpio);
+    gpio.Pin = GPIO_PIN_9;
+    HAL_GPIO_Init(GPIOC, &gpio);
+
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_SET);
+    for (uint8_t c = 0U; c < 9U; c++)
+    {
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_RESET);
+      for (volatile uint32_t d = 0U; d < 120U; d++) {}
+      HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
+      for (volatile uint32_t d = 0U; d < 120U; d++) {}
+    }
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_RESET);
+    for (volatile uint32_t d = 0U; d < 120U; d++) {}
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_8, GPIO_PIN_SET);
+    for (volatile uint32_t d = 0U; d < 120U; d++) {}
+    HAL_GPIO_WritePin(GPIOC, GPIO_PIN_9, GPIO_PIN_SET);
+    for (volatile uint32_t d = 0U; d < 120U; d++) {}
+
+    (void)HAL_I2C_Init(hi2c);
+    return;
+  }
+#endif
+  (void)HAL_I2C_DeInit(hi2c);
+  (void)HAL_I2C_Init(hi2c);
+}
+
 void bno055_assignI2C(I2C_HandleTypeDef *hi2c_device)
 {
   _bno055_i2c_port = hi2c_device;
+  bno055_invalidatePageCache();
 }
 
 void bno055_assignAddress(uint8_t addr_7bit)
@@ -55,6 +104,11 @@ uint8_t bno055_getAddress(void)
 HAL_StatusTypeDef bno055_getLastI2CStatus(void)
 {
   return _bno055_last_status;
+}
+
+bool bno055_lastIoOk(void)
+{
+  return (_bno055_last_status == HAL_OK);
 }
 
 void bno055_delay(int time)
@@ -74,13 +128,18 @@ void bno055_writeData(uint8_t reg, uint8_t data)
     return;
   }
 
-  uint8_t txdata[2] = { reg, data };
+  uint8_t txdata[2] = {reg, data};
   _bno055_last_status = HAL_I2C_Master_Transmit(
       _bno055_i2c_port,
       (uint16_t)(_bno055_i2c_addr << 1U),
       txdata,
-      sizeof(txdata),
+      2U,
       BNO055_I2C_TIMEOUT_MS);
+
+  if (_bno055_last_status != HAL_OK)
+  {
+    bno055_invalidatePageCache();
+  }
 }
 
 void bno055_readData(uint8_t reg, uint8_t *data, uint8_t len)
@@ -91,6 +150,8 @@ void bno055_readData(uint8_t reg, uint8_t *data, uint8_t len)
     return;
   }
 
+  /* Two-phase discrete transfer: Transmit register address, then Receive data.
+   * Avoids STM32F4 repeated-START clock stretching silicon errata (ES0182). */
   HAL_StatusTypeDef st = HAL_I2C_Master_Transmit(
       _bno055_i2c_port,
       (uint16_t)(_bno055_i2c_addr << 1U),
@@ -104,14 +165,79 @@ void bno055_readData(uint8_t reg, uint8_t *data, uint8_t len)
         _bno055_i2c_port,
         (uint16_t)(_bno055_i2c_addr << 1U),
         data,
-        len,
+        (uint16_t)len,
         BNO055_I2C_TIMEOUT_MS);
+  }
+
+  if (st != HAL_OK)
+  {
+    bno055_invalidatePageCache();
   }
 
   _bno055_last_status = st;
 }
 
-bool BNO055_IMU_Init(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c)
+static float BNO055_Absf(float x)
+{
+  return (x < 0.0f) ? -x : x;
+}
+
+static float BNO055_ClampBiasDps(float dps)
+{
+  if (dps > BNO055_DRIFT_MAX_BIAS_DPS)
+  {
+    return BNO055_DRIFT_MAX_BIAS_DPS;
+  }
+  if (dps < -BNO055_DRIFT_MAX_BIAS_DPS)
+  {
+    return -BNO055_DRIFT_MAX_BIAS_DPS;
+  }
+  return dps;
+}
+
+static void BNO055_ResetDriftWindow(BNO055_IMU_t *imu)
+{
+  imu->still_ms = 0U;
+  imu->still_win_ms = 0U;
+  imu->still_raw_deg = 0.0f;
+}
+
+static void BNO055_DecodeCalib(BNO055_IMU_t *imu, uint8_t reg_val)
+{
+  imu->calib.sys = (uint8_t)((reg_val >> 6U) & 0x03U);
+  imu->calib.gyro = (uint8_t)((reg_val >> 4U) & 0x03U);
+  imu->calib.accel = (uint8_t)((reg_val >> 2U) & 0x03U);
+  imu->calib.mag = (uint8_t)(reg_val & 0x03U);
+}
+
+static bool BNO055_CheckAndRestoreMode(BNO055_IMU_t *imu, bool *mode_was_reset)
+{
+  uint8_t status_buf[9] = {0};
+  *mode_was_reset = false;
+
+  bno055_setPage(0U);
+  bno055_readData(BNO055_CALIB_STAT, status_buf, (uint8_t)sizeof(status_buf));
+  if (_bno055_last_status != HAL_OK)
+  {
+    return false;
+  }
+
+  BNO055_DecodeCalib(imu, status_buf[0]);
+  uint8_t cur_mode = (uint8_t)(status_buf[8] & 0x0FU);
+  if (cur_mode != (uint8_t)imu->op_mode)
+  {
+    /* Silent brown-out / soft-reset dropped BNO055 back to CONFIG (0x00): restore without yaw jump */
+    bno055_setPage(0U);
+    bno055_writeData(BNO055_OPR_MODE, (uint8_t)imu->op_mode);
+    imu->mode_resets++;
+    imu->resync_yaw_prev = true;
+    BNO055_ResetDriftWindow(imu);
+    *mode_was_reset = true;
+  }
+  return true;
+}
+
+bool BNO055_IMU_InitWithMode(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c, bno055_opmode_t op_mode)
 {
   if ((imu == NULL) || (hi2c == NULL))
   {
@@ -119,19 +245,91 @@ bool BNO055_IMU_Init(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c)
   }
 
   memset(imu, 0, sizeof(*imu));
+  imu->op_mode = (op_mode == BNO055_OPERATION_MODE_CONFIG) ? BNO055_DEFAULT_FUSION_MODE : op_mode;
   bno055_assignI2C(hi2c);
 
-  /* BNO055 internal MCU takes up to ~650 ms POR after power-on before I2C responds */
+  /* Bus recovery: 9 clocks on PA8/PC9 if previous run or slave hung SDA low */
+  BNO055_RecoverI2C(hi2c);
+  HAL_Delay(20);
+
+  /* Step 0: Probe for BNO080 / BNO085 (addresses 0x4A, 0x4B) */
+  uint8_t bno08x_addr = 0U;
+  if (BNO08X_Detect(hi2c, &bno08x_addr))
+  {
+    if (BNO08X_Init(hi2c, bno08x_addr, 10000U)) /* 100 Hz = 10,000 us */
+    {
+      imu->i2c_addr = bno08x_addr;
+      imu->chip_id = 0x85U; /* BNO085 indicator */
+      imu->connected = true;
+      imu->initialized = true;
+      imu->healthy = true;
+      imu->consec_errs = 0U;
+      imu->last_ok_ms = HAL_GetTick();
+      imu->prev_sample_ms = imu->last_ok_ms;
+      imu->has_prev_sample_ms = true;
+
+      /* Read initial sample to set zero offsets */
+      BNO08X_Rotation_t rot = {0};
+      for (uint8_t retry = 0U; retry < 15U; retry++)
+      {
+        HAL_Delay(10);
+        if (BNO08X_Poll(hi2c, bno08x_addr, &rot))
+        {
+          imu->yaw_raw = rot.yaw_deg;
+          imu->yaw_prev = imu->yaw_raw;
+          imu->yaw_total = imu->yaw_raw;
+          imu->yaw_offset = imu->yaw_total;
+          imu->yaw = 0.0f;
+
+          imu->pitch_raw = rot.pitch_deg;
+          imu->pitch_prev = imu->pitch_raw;
+          imu->pitch_total = imu->pitch_raw;
+          imu->pitch_offset = imu->pitch_total;
+          imu->pitch = 0.0f;
+
+          imu->roll_raw = rot.roll_deg;
+          imu->roll_prev = imu->roll_raw;
+          imu->roll_total = imu->roll_raw;
+          imu->roll_offset = imu->roll_total;
+          imu->roll = 0.0f;
+
+          imu->calib.sys = rot.accuracy;
+          imu->calib.gyro = rot.accuracy;
+          imu->calib.accel = rot.accuracy;
+          imu->calib.mag = 3U;
+          imu->ok_count++;
+          break;
+        }
+      }
+      return true;
+    }
+  }
+
+  /* Probe for BNO055 by reading CHIP_ID (0x00) directly at 0x28 (ADDR=GND) or 0x29 (fallback).
+   * DO NOT use HAL_I2C_IsDeviceReady(): sending 0-byte SLA+W followed by immediate STOP
+   * causes BNO055 internal Cortex-M0 to stretch SCL during STOP, timing out BUSY flag in STM32 HAL! */
   uint32_t t_start = HAL_GetTick();
   uint8_t detected_addr = 0U;
+  uint8_t chip_id = 0U;
   do
   {
-    if (HAL_I2C_IsDeviceReady(hi2c, (uint16_t)(BNO055_I2C_ADDR_LO << 1U), 2U, 5U) == HAL_OK)
+    /* 1. Try address 0x28 (ADDR tied to GND - primary standard config) */
+    bno055_assignAddress(BNO055_I2C_ADDR_LO);
+    bno055_setPage(0U);
+    chip_id = 0U;
+    bno055_readData(BNO055_CHIP_ID, &chip_id, 1U);
+    if ((bno055_getLastI2CStatus() == HAL_OK) && (chip_id == BNO055_ID))
     {
       detected_addr = BNO055_I2C_ADDR_LO;
       break;
     }
-    if (HAL_I2C_IsDeviceReady(hi2c, (uint16_t)(BNO055_I2C_ADDR_HI << 1U), 2U, 5U) == HAL_OK)
+
+    /* 2. Try address 0x29 (fallback if ADDR pin floating or tied to 3V3) */
+    bno055_assignAddress(BNO055_I2C_ADDR_HI);
+    bno055_setPage(0U);
+    chip_id = 0U;
+    bno055_readData(BNO055_CHIP_ID, &chip_id, 1U);
+    if ((bno055_getLastI2CStatus() == HAL_OK) && (chip_id == BNO055_ID))
     {
       detected_addr = BNO055_I2C_ADDR_HI;
       break;
@@ -141,8 +339,24 @@ bool BNO055_IMU_Init(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c)
 
   if (detected_addr == 0U)
   {
+    /* Last-ditch: run bus recovery and bno055_setup at 0x28 */
+    BNO055_RecoverI2C(hi2c);
+    bno055_assignAddress(BNO055_I2C_ADDR_LO);
+    bno055_setup();
+    bno055_setPage(0U);
+    chip_id = 0U;
+    bno055_readData(BNO055_CHIP_ID, &chip_id, 1U);
+    if ((bno055_getLastI2CStatus() == HAL_OK) && (chip_id == BNO055_ID))
+    {
+      detected_addr = BNO055_I2C_ADDR_LO;
+    }
+  }
+
+  if (detected_addr == 0U)
+  {
     imu->connected = false;
     imu->initialized = false;
+    imu->chip_id = chip_id;
     imu->err_count++;
     return false;
   }
@@ -152,9 +366,18 @@ bool BNO055_IMU_Init(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c)
 
   bno055_setup();
 
-  uint8_t chip_id = 0U;
-  bno055_setPage(0U);
-  bno055_readData(BNO055_CHIP_ID, &chip_id, 1U);
+  /* Retry reading CHIP_ID up to 10 times with 20ms delay (total 200ms window) */
+  chip_id = 0U;
+  for (uint8_t retry = 0U; retry < 10U; retry++)
+  {
+    bno055_setPage(0U);
+    bno055_readData(BNO055_CHIP_ID, &chip_id, 1U);
+    if ((_bno055_last_status == HAL_OK) && (chip_id == BNO055_ID))
+    {
+      break;
+    }
+    bno055_delay(20);
+  }
   imu->chip_id = chip_id;
 
   if ((_bno055_last_status != HAL_OK) || (chip_id != BNO055_ID))
@@ -165,8 +388,8 @@ bool BNO055_IMU_Init(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c)
     return false;
   }
 
-  bno055_setOperationModeNDOF();
-  bno055_delay(20);
+  bno055_setOperationMode(imu->op_mode);
+  bno055_delay(30);
 
   bno055_vector_t eul = bno055_getVectorEuler();
   if (_bno055_last_status == HAL_OK)
@@ -195,44 +418,307 @@ bool BNO055_IMU_Init(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c)
   imu->calib = bno055_getCalibrationState();
   imu->connected = true;
   imu->initialized = true;
+  imu->healthy = true;
+  imu->consec_errs = 0U;
+  imu->last_ok_ms = HAL_GetTick();
+  imu->prev_sample_ms = imu->last_ok_ms;
+  imu->has_prev_sample_ms = true;
   return true;
+}
+
+bool BNO055_IMU_Init(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c)
+{
+  return BNO055_IMU_InitWithMode(imu, hi2c, BNO055_DEFAULT_FUSION_MODE);
+}
+
+void BNO055_IMU_SetStationaryHint(BNO055_IMU_t *imu, bool stationary)
+{
+  if (imu == NULL)
+  {
+    return;
+  }
+  if (!stationary && imu->stationary_hint)
+  {
+    BNO055_ResetDriftWindow(imu);
+  }
+  imu->stationary_hint = stationary;
 }
 
 bool BNO055_IMU_Update(BNO055_IMU_t *imu)
 {
-  if ((imu == NULL) || (!imu->connected))
+  if ((imu == NULL) || (!imu->connected) || (_bno055_i2c_port == NULL))
   {
     return false;
+  }
+
+  uint32_t now_ms = HAL_GetTick();
+
+  /* Dedicated high-rate update for BNO080 / BNO085 (chip_id == 0x85) */
+  if (imu->chip_id == 0x85U)
+  {
+    if (!imu->healthy)
+    {
+      if ((int32_t)(now_ms - imu->next_recover_ms) < 0)
+      {
+        return false;
+      }
+      BNO055_RecoverI2C(_bno055_i2c_port);
+      if (BNO08X_Init(_bno055_i2c_port, imu->i2c_addr, 10000U))
+      {
+        imu->resync_yaw_prev = true;
+        imu->healthy = true;
+        imu->consec_errs = 0U;
+        imu->recoveries++;
+        imu->last_ok_ms = now_ms;
+        imu->prev_sample_ms = now_ms;
+      }
+      else
+      {
+        imu->next_recover_ms = now_ms + BNO055_RECOVER_BACKOFF_MS;
+        return false;
+      }
+    }
+
+    BNO08X_Rotation_t rot = {0};
+    if (BNO08X_Poll(_bno055_i2c_port, imu->i2c_addr, &rot))
+    {
+      if (!imu->resync_yaw_prev)
+      {
+        float dy = BNO055_WrapDeltaDeg(rot.yaw_deg - imu->yaw_prev);
+        uint32_t dt_ms = (uint32_t)(now_ms - imu->prev_sample_ms);
+        if ((dt_ms < 100U) && (fabsf(dy) > 35.0f))
+        {
+          /* Physically impossible >35 deg jump in <100 ms -> drop corrupted I2C/SHTP sample */
+          imu->err_count++;
+          return false;
+        }
+        imu->yaw_total += dy;
+      }
+      else
+      {
+        imu->resync_yaw_prev = false;
+      }
+      imu->yaw_raw = rot.yaw_deg;
+      imu->yaw_prev = imu->yaw_raw;
+      imu->yaw = imu->yaw_total - imu->yaw_offset;
+
+      imu->pitch_raw = rot.pitch_deg;
+      float dp = BNO055_WrapDeltaDeg(imu->pitch_raw - imu->pitch_prev);
+      imu->pitch_total += dp;
+      imu->pitch_prev = imu->pitch_raw;
+      imu->pitch = imu->pitch_total - imu->pitch_offset;
+
+      imu->roll_raw = rot.roll_deg;
+      float dr = BNO055_WrapDeltaDeg(imu->roll_raw - imu->roll_prev);
+      imu->roll_total += dr;
+      imu->roll_prev = imu->roll_raw;
+      imu->roll = imu->roll_total - imu->roll_offset;
+
+      imu->calib.sys = rot.accuracy;
+      imu->calib.gyro = rot.accuracy;
+      imu->calib.accel = rot.accuracy;
+      imu->calib.mag = rot.accuracy;
+
+      imu->ok_count++;
+      imu->consec_errs = 0U;
+      imu->healthy = true;
+      imu->last_ok_ms = now_ms;
+      imu->prev_sample_ms = now_ms;
+      imu->has_prev_sample_ms = true;
+      return true;
+    }
+    else
+    {
+      if ((uint32_t)(now_ms - imu->last_ok_ms) > 200U)
+      {
+        imu->err_count++;
+        if (imu->consec_errs < 255U)
+        {
+          imu->consec_errs++;
+        }
+        if (imu->consec_errs >= BNO055_CONSEC_ERR_LIMIT)
+        {
+          imu->healthy = false;
+          imu->next_recover_ms = now_ms + BNO055_RECOVER_BACKOFF_MS;
+        }
+      }
+      return false;
+    }
+  }
+
+  /* Non-blocking error backoff + I2C bus unstick + hot op_mode recovery */
+  if (!imu->healthy)
+  {
+    if ((int32_t)(now_ms - imu->next_recover_ms) < 0)
+    {
+      return false;
+    }
+
+    BNO055_RecoverI2C(_bno055_i2c_port);
+    bno055_assignAddress(imu->i2c_addr);
+    uint8_t chip_id = 0U;
+    bno055_setPage(0U);
+    bno055_readData(BNO055_CHIP_ID, &chip_id, 1U);
+    if ((_bno055_last_status == HAL_OK) && (chip_id == BNO055_ID))
+    {
+      uint8_t cur_mode = 0U;
+      bno055_readData(BNO055_OPR_MODE, &cur_mode, 1U);
+      if ((_bno055_last_status != HAL_OK) || ((uint8_t)(cur_mode & 0x0FU) != (uint8_t)imu->op_mode))
+      {
+        bno055_writeData(BNO055_OPR_MODE, (uint8_t)imu->op_mode);
+        imu->mode_resets++;
+        imu->resync_yaw_prev = true;
+      }
+      BNO055_ResetDriftWindow(imu);
+      imu->healthy = true;
+      imu->consec_errs = 0U;
+      imu->recoveries++;
+      imu->last_ok_ms = now_ms;
+      imu->prev_sample_ms = now_ms;
+      imu->has_prev_sample_ms = true;
+    }
+
+    if (!imu->healthy)
+    {
+      imu->err_count++;
+      imu->next_recover_ms = now_ms + BNO055_RECOVER_BACKOFF_MS;
+      return false;
+    }
   }
 
   bno055_vector_t eul = bno055_getVectorEuler();
   if (_bno055_last_status != HAL_OK)
   {
     imu->err_count++;
+    if (imu->consec_errs < 255U)
+    {
+      imu->consec_errs++;
+    }
+    if (imu->consec_errs >= BNO055_CONSEC_ERR_LIMIT)
+    {
+      imu->healthy = false;
+      imu->next_recover_ms = now_ms + BNO055_RECOVER_BACKOFF_MS;
+    }
     return false;
   }
 
+  /* Check CALIB_STAT..OPR_MODE (0x35..0x3D) at 5 Hz or immediately on suspicious {0,0,0} snap */
+  bool eul_zero_snap = !imu->resync_yaw_prev &&
+                       (eul.x == 0.0) && (eul.y == 0.0) && (eul.z == 0.0) &&
+                       ((BNO055_Absf(imu->yaw_prev) > 0.25f) ||
+                        (BNO055_Absf(imu->roll_prev) > 0.25f) ||
+                        (BNO055_Absf(imu->pitch_prev) > 0.25f));
+
+  imu->calib_div++;
+  if (eul_zero_snap || (imu->calib_div >= BNO055_CALIB_POLL_DIV))
+  {
+    bool mode_was_reset = false;
+    imu->calib_div = 0U;
+    if (BNO055_CheckAndRestoreMode(imu, &mode_was_reset) && mode_was_reset)
+    {
+      imu->consec_errs = 0U;
+      imu->healthy = true;
+      imu->last_ok_ms = now_ms;
+      imu->prev_sample_ms = now_ms;
+      imu->has_prev_sample_ms = true;
+      imu->ok_count++;
+      return true;
+    }
+  }
+
+  uint32_t dt_ms = imu->has_prev_sample_ms ? (uint32_t)(now_ms - imu->prev_sample_ms) : 0U;
+  imu->prev_sample_ms = now_ms;
+  imu->has_prev_sample_ms = true;
+
+  imu->consec_errs = 0U;
+  imu->healthy = true;
+  imu->last_ok_ms = now_ms;
   imu->euler = eul;
 
   float yr = (float)eul.x;
-  imu->yaw_raw = yr;
-  imu->yaw_total += BNO055_WrapDeltaDeg(yr - imu->yaw_prev);
-  imu->yaw_prev = yr;
-  imu->yaw = imu->yaw_total - imu->yaw_offset;
-
   float rr = (float)eul.y;
-  imu->roll_raw = rr;
-  imu->roll_total += BNO055_WrapDeltaDeg(rr - imu->roll_prev);
-  imu->roll_prev = rr;
-  imu->roll = imu->roll_total - imu->roll_offset;
-
   float pr = (float)eul.z;
+  imu->yaw_raw = yr;
+  imu->roll_raw = rr;
   imu->pitch_raw = pr;
-  imu->pitch_total += BNO055_WrapDeltaDeg(pr - imu->pitch_prev);
-  imu->pitch_prev = pr;
+
+  if (imu->resync_yaw_prev)
+  {
+    imu->yaw_prev = yr;
+    imu->roll_prev = rr;
+    imu->pitch_prev = pr;
+    imu->resync_yaw_prev = false;
+    BNO055_ResetDriftWindow(imu);
+  }
+  else
+  {
+    float raw_delta = BNO055_WrapDeltaDeg(yr - imu->yaw_prev);
+    imu->yaw_prev = yr;
+
+    float bias_comp = 0.0f;
+    if ((dt_ms > 0U) && (dt_ms <= 250U))
+    {
+      bias_comp = imu->yaw_bias_dps * ((float)dt_ms * 0.001f);
+    }
+    imu->yaw_total += (raw_delta - bias_comp);
+
+    imu->roll_total += BNO055_WrapDeltaDeg(rr - imu->roll_prev);
+    imu->roll_prev = rr;
+    imu->pitch_total += BNO055_WrapDeltaDeg(pr - imu->pitch_prev);
+    imu->pitch_prev = pr;
+
+    /* Windowed adaptive ZRO drift estimator (6-DOF IMU mode only — disabled in
+     * 9-DOF NDOF mode so software bias never fights magnetometer North lock) */
+    if ((imu->op_mode == BNO055_OPERATION_MODE_IMU) &&
+        imu->stationary_hint &&
+        (dt_ms > 0U) && (dt_ms <= 200U) &&
+        (BNO055_Absf(raw_delta) <= BNO055_DRIFT_MAX_TICK_DEG))
+    {
+      if (imu->still_ms < BNO055_DRIFT_SETTLE_MS)
+      {
+        imu->still_ms += dt_ms;
+      }
+      else
+      {
+        imu->still_win_ms += dt_ms;
+        imu->still_raw_deg += raw_delta;
+        if (imu->still_win_ms >= BNO055_DRIFT_WINDOW_MS)
+        {
+          float win_dps = imu->still_raw_deg / ((float)imu->still_win_ms * 0.001f);
+          if (BNO055_Absf(win_dps) <= BNO055_DRIFT_MAX_BIAS_DPS)
+          {
+            if (imu->bias_updates == 0U)
+            {
+              imu->yaw_bias_dps = BNO055_ClampBiasDps(win_dps);
+            }
+            else
+            {
+              float next_bias = imu->yaw_bias_dps +
+                                BNO055_DRIFT_EMA_ALPHA * (win_dps - imu->yaw_bias_dps);
+              imu->yaw_bias_dps = BNO055_ClampBiasDps(next_bias);
+            }
+            imu->bias_updates++;
+          }
+          else
+          {
+            /* Smooth external rotation while wheels idle: reject & re-settle */
+            imu->still_ms = 0U;
+          }
+          imu->still_win_ms = 0U;
+          imu->still_raw_deg = 0.0f;
+        }
+      }
+    }
+    else
+    {
+      BNO055_ResetDriftWindow(imu);
+    }
+  }
+
+  imu->yaw = imu->yaw_total - imu->yaw_offset;
+  imu->roll = imu->roll_total - imu->roll_offset;
   imu->pitch = imu->pitch_total - imu->pitch_offset;
 
-  imu->calib = bno055_getCalibrationState();
   imu->ok_count++;
   return true;
 }
