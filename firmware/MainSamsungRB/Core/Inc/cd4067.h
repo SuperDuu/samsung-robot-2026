@@ -5,11 +5,12 @@
   *          (U8 + U6A LMV358 + ADC1_IN0 PA0 + TIM7 + L1..L11 active-LOW LEDs).
   *
   * Supported operating modes:
-  *   - CD4067_MODE_LINE_11      : Backward-compatible 11-sensor line array (I0..I10 -> L1..L11).
+  *   - CD4067_MODE_LINE_11      : 11-sensor line array (I0..I10 -> L1..L11).
   *   - CD4067_MODE_LIMIT_SWITCH : 16-channel limit switch scanner (I0..I15) with Schmitt
   *                                hysteresis + multi-sweep debounce (skips boot offset tare).
   *   - CD4067_MODE_LINE_2X8     : Dual-end 2x8 line sensor array (Front I0..I7, Rear I8..I15)
-  *                                with 11-LED multi-view encoding (L1..L11).
+  *                                with 2-point White/Black normalization (0..1000), continuous
+  *                                centroid [-700..+700], Load Port marker detect, & 11-LED views.
   ******************************************************************************
   */
 
@@ -36,6 +37,12 @@ extern "C" {
 #define CD4067_CALIB_WARMUP_SWEEPS   100U
 #define CD4067_CALIB_AVG_SWEEPS      256U
 
+/* 2-point White/Black calibration & continuous 0..1000 normalization constants */
+#define CD4067_MIN_CONTRAST_ADC      400U  /* Minimum (cal_max - cal_min) per sensor */
+#define CD4067_NORM_NOISE_FLOOR      150U  /* Subtracted floor before centroid weighting */
+#define CD4067_NORM_ACTIVE_THRESH    500U  /* Binary threshold on 0..1000 normalized scale */
+#define CD4067_LOADPORT_WIDE_CNT     5U    /* >=5 of 8 row sensors active = Load Port mark */
+
 /* Limit-switch Schmitt trigger hysteresis thresholds on 12-bit ADC (0..4095 @ 3.3V) */
 #define CD4067_LIMIT_LOW_MAX         1400U /* <= 1.13 V -> logic LOW  */
 #define CD4067_LIMIT_HIGH_MIN        2600U /* >= 2.10 V -> logic HIGH */
@@ -60,16 +67,30 @@ typedef enum
   CD4067_LED_VIEW_DUAL_5_1_5 = 4U  /* L1..L5=Front(5), L6=Both active separator, L7..L11=Rear(5) */
 } CD4067_LedView_t;
 
+typedef enum
+{
+  CD4067_POLARITY_AUTO      = 0U, /* Infer polarity from sweep duty (<45% on line) */
+  CD4067_POLARITY_LINE_HIGH = 1U, /* Line produces higher ADC than floor */
+  CD4067_POLARITY_LINE_LOW  = 2U  /* Line produces lower ADC than floor */
+} CD4067_Polarity_t;
+
 typedef struct
 {
   volatile uint16_t         raw[CD4067_NUM_CHANNELS];
   volatile uint16_t         offset[CD4067_NUM_CHANNELS];
+  volatile uint16_t         cal_min[CD4067_NUM_CHANNELS];
+  volatile uint16_t         cal_max[CD4067_NUM_CHANNELS];
+  volatile uint16_t         norm[CD4067_NUM_CHANNELS];
   volatile uint8_t          sensor_active[CD4067_NUM_CHANNELS];
   volatile uint16_t         active_mask;
   volatile uint8_t          active_count;
   volatile int16_t          line_error;
   volatile uint8_t          current_channel;
   volatile uint8_t          cal_done;
+  volatile uint8_t          two_point_active;
+  volatile uint8_t          two_point_recording;
+  volatile uint8_t          line_on_high;
+  volatile uint16_t         low_contrast_mask;
   volatile uint16_t         sweep_count;
   volatile uint16_t         threshold;
   volatile CD4067_Mode_t    mode;
@@ -82,6 +103,8 @@ typedef struct
   volatile uint8_t          rear_count;
   volatile int16_t          front_error;
   volatile int16_t          rear_error;
+  volatile int16_t          front_centroid_x10;
+  volatile int16_t          rear_centroid_x10;
   volatile uint32_t         sweep_seq;
 } CD4067_Data_t;
 
@@ -98,12 +121,25 @@ void CD4067_SelectChannel(uint8_t channel);
 void CD4067_SetLineLed(uint8_t index, bool on);
 void CD4067_SetAllLineLeds(bool on);
 
+/* 2-point White/Black sweep calibration & Flash persistence helpers */
+void CD4067_BeginTwoPointCal(void);
+bool CD4067_FinishTwoPointCal(CD4067_Polarity_t polarity);
+bool CD4067_ApplyTwoPointCal(const uint16_t min_arr[CD4067_NUM_CHANNELS],
+                             const uint16_t max_arr[CD4067_NUM_CHANNELS],
+                             uint8_t line_on_high);
+void CD4067_ExportTwoPointCal(uint16_t min_arr[CD4067_NUM_CHANNELS],
+                              uint16_t max_arr[CD4067_NUM_CHANNELS],
+                              uint8_t *line_on_high);
+bool CD4067_IsTwoPointCalRecording(void);
+bool CD4067_IsTwoPointActive(void);
+
 void CD4067_SetLedViewMode(CD4067_LedView_t view);
 CD4067_LedView_t CD4067_CycleLedViewMode(void);
 CD4067_LedView_t CD4067_GetLedViewMode(void);
 void CD4067_UpdateLeds(uint32_t now_ms);
 
 uint16_t CD4067_GetRaw(uint8_t channel);
+uint16_t CD4067_GetNorm(uint8_t channel);
 int16_t CD4067_GetLineError(void);
 uint16_t CD4067_GetActiveMask(void);
 bool CD4067_IsCalibrated(void);
@@ -115,6 +151,8 @@ uint8_t CD4067_GetFrontMask(void);
 uint8_t CD4067_GetRearMask(void);
 int16_t CD4067_GetFrontError(void);
 int16_t CD4067_GetRearError(void);
+int16_t CD4067_GetFrontCentroidX10(void);
+int16_t CD4067_GetRearCentroidX10(void);
 
 /* Dispatch hooks to invoke from HAL_TIM_PeriodElapsedCallback / HAL_ADC_ConvCpltCallback */
 void CD4067_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
