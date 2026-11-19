@@ -153,14 +153,14 @@ void PS2_Update(void)
   }
 
   uint8_t Joystick[2];
-  Joystick[0] = (uint8_t)((map(receive[8], 0, 255, 0, 100) + map(receive[6], 0, 255, 0, 100)) - 4);
+  Joystick[0] = (uint8_t)((map(receive[8], 0, 255, 0, 100) + map(receive[6], 0, 255, 0, 100)));
   Joystick[1] = (uint8_t)(map(receive[7], 0, 255, 0, 100) + map(receive[5], 0, 255, 0, 100));
 
   data->data2[0]  = (uint8_t)map(receive[6], 0, 255, 0, 100);
   data->data2[1]  = (uint8_t)map(receive[5], 0, 255, 0, 100);
   data->address   = 255U;
   data->data[0]   = Joystick[0];
-  data->data[1]   = Joystick[1];
+  data->data[1]   = 200-Joystick[1];
   data->button[0] = buttonStatus[0];
   data->button[1] = buttonStatus[1];
 }
