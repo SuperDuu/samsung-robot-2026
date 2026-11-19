@@ -29,14 +29,14 @@ extern "C" {
 #define DRIVE_OMNI_NORM_RPMX10           2500.0f
 #define DRIVE_OMNI_BOOST_RPMX10          3800.0f
 #define DRIVE_PS2_DEADBAND               10.0f
-#define DRIVE_OMNI_DPAD_PCT              70.0f
+#define DRIVE_OMNI_DPAD_PCT              25.0f   /* Fine micro-adjustment (half speed of 1 joystick crawl) */
 #define DRIVE_OMNI_OMEGA_MAX             65.0f
 #define DRIVE_OMNI_OMEGA_SCALE_RPMX10    2000.0f /* Fixed 200 RPM full-scale (2.0 RPM per 1%), decoupled from Gear! */
 #define DRIVE_OMNI_SLEW_ACCEL            25.0f   /* 25% per 10ms = 250%/s punchy, responsive translation */
 #define DRIVE_OMNI_SLEW_DECEL            35.0f   /* 35% per 10ms = 350%/s rapid deceleration */
 
 #define DRIVE_OMNI_GEAR_COUNT            4U
-#define DRIVE_OMNI_DEFAULT_GEAR          2U      /* 85% default speed tier (fast, responsive) */
+#define DRIVE_OMNI_DEFAULT_GEAR          0U      /* 33% default base speed tier (3x boost with L1 reaches 100%) */
 #define DRIVE_OMNI_CRAWL_PCT             20U     /* L2+R2 simultaneous precision crawl */
 #define DRIVE_OMNI_ROT_STEP_DEG          1.2f    /* 120 deg/s at 100 Hz while L1/R1 held */
 #define DRIVE_OMNI_HEADING_TRIM_STEP_DEG 0.5f    /* SELECT + L1/R1 live IMU trim per press */
