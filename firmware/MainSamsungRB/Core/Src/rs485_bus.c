@@ -450,7 +450,7 @@ void RS485_SetRxCallback(RS485_Bus_t *bus, RS485_RxCallback_t cb, void *ctx)
   bus->rx_callback_ctx = ctx;
 }
 
-HAL_StatusTypeDef RS485_StartRx(RS485_Bus_t *bus)
+static HAL_StatusTypeDef rs485_rearm_rx_dma(RS485_Bus_t *bus, bool clear_dma_buf, bool reset_frame)
 {
   if ((bus == NULL) || (bus->huart == NULL))
   {
@@ -458,8 +458,14 @@ HAL_StatusTypeDef RS485_StartRx(RS485_Bus_t *bus)
   }
 
   bus->rx_read_pos = 0U;
-  bus->frame_pos = 0U;
-  memset(bus->rx_dma_buf, 0, sizeof(bus->rx_dma_buf));
+  if (reset_frame)
+  {
+    bus->frame_pos = 0U;
+  }
+  if (clear_dma_buf)
+  {
+    memset(bus->rx_dma_buf, 0, sizeof(bus->rx_dma_buf));
+  }
   if (bus->tx_active == 0U)
   {
     rs485_set_dir_rx(bus);
@@ -475,28 +481,10 @@ HAL_StatusTypeDef RS485_StartRx(RS485_Bus_t *bus)
   return HAL_UART_Receive_DMA(bus->huart, bus->rx_dma_buf, RS485_RX_BUF_SIZE);
 }
 
-void RS485_FeedBytes(RS485_Bus_t *bus, const uint8_t *data, uint16_t len, uint32_t now_ms)
-{
-  if ((bus == NULL) || (data == NULL))
-  {
-    return;
-  }
-  for (uint16_t i = 0U; i < len; i++)
-  {
-    rs485_feed_byte(bus, data[i], now_ms);
-  }
-}
-
-void RS485_ProcessRx(RS485_Bus_t *bus, uint32_t now_ms)
+static void rs485_drain_dma_ring(RS485_Bus_t *bus, uint32_t now_ms)
 {
   if ((bus == NULL) || (bus->huart == NULL) || (bus->huart->hdmarx == NULL))
   {
-    return;
-  }
-
-  if (bus->huart->RxState == HAL_UART_STATE_READY)
-  {
-    (void)RS485_StartRx(bus);
     return;
   }
 
@@ -521,6 +509,39 @@ void RS485_ProcessRx(RS485_Bus_t *bus, uint32_t now_ms)
       bus->rx_read_pos = 0U;
     }
     rs485_feed_byte(bus, byte, now_ms);
+  }
+}
+
+HAL_StatusTypeDef RS485_StartRx(RS485_Bus_t *bus)
+{
+  return rs485_rearm_rx_dma(bus, true, true);
+}
+
+void RS485_FeedBytes(RS485_Bus_t *bus, const uint8_t *data, uint16_t len, uint32_t now_ms)
+{
+  if ((bus == NULL) || (data == NULL))
+  {
+    return;
+  }
+  for (uint16_t i = 0U; i < len; i++)
+  {
+    rs485_feed_byte(bus, data[i], now_ms);
+  }
+}
+
+void RS485_ProcessRx(RS485_Bus_t *bus, uint32_t now_ms)
+{
+  if ((bus == NULL) || (bus->huart == NULL) || (bus->huart->hdmarx == NULL))
+  {
+    return;
+  }
+
+  /* Always drain unread ring bytes BEFORE checking if DMA stopped */
+  rs485_drain_dma_ring(bus, now_ms);
+
+  if (bus->huart->RxState == HAL_UART_STATE_READY)
+  {
+    (void)rs485_rearm_rx_dma(bus, false, false);
   }
 }
 
@@ -584,11 +605,33 @@ void RS485_UartErrorCallback(RS485_Bus_t *bus, UART_HandleTypeDef *huart)
     return;
   }
 
-  bus->stats.uart_err_recoveries++;
-  rs485_uart_flush_rx(bus->huart);
-  if (bus->huart->hdmarx != NULL)
+  uint32_t err = HAL_UART_GetError(huart);
+  if ((err & HAL_UART_ERROR_ORE) != 0U)
   {
-    (void)RS485_StartRx(bus);
+    bus->stats.uart_ore_errors++;
+  }
+  if ((err & HAL_UART_ERROR_FE) != 0U)
+  {
+    bus->stats.uart_fe_errors++;
+  }
+  if ((err & HAL_UART_ERROR_NE) != 0U)
+  {
+    bus->stats.uart_ne_errors++;
+  }
+  if ((err & HAL_UART_ERROR_PE) != 0U)
+  {
+    bus->stats.uart_pe_errors++;
+  }
+
+  bus->stats.uart_err_recoveries++;
+
+  /* Preserve intact buffered DMA bytes + partial frame state before clearing/re-arming */
+  rs485_drain_dma_ring(bus, HAL_GetTick());
+  rs485_uart_flush_rx(bus->huart);
+
+  if ((bus->huart->hdmarx != NULL) && (bus->huart->RxState != HAL_UART_STATE_BUSY_RX))
+  {
+    (void)rs485_rearm_rx_dma(bus, false, false);
   }
 }
 
