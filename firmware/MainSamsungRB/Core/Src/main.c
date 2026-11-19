@@ -796,7 +796,11 @@ int main(void) {
       bool dpad_micro_active = g_tdk_link_ok &&
                                ((g_tdk_cmd.ps2_btn[0] == 16U) || (g_tdk_cmd.ps2_btn[0] == 32U) ||
                                 (g_tdk_cmd.ps2_btn[0] == 64U) || (g_tdk_cmd.ps2_btn[0] == 128U));
-      int32_t target_ki_m = dpad_micro_active ? 0 : g_pidboard_vel_ki_m;
+      bool yaw_trim_active = g_tdk_link_ok &&
+                             (((g_tdk_cmd.ps2_btn[1] & DRIVE_PS2_B1_L2) != 0U) ||
+                              ((g_tdk_cmd.ps2_btn[1] & DRIVE_PS2_B1_R2) != 0U));
+      bool micro_active = dpad_micro_active || yaw_trim_active;
+      int32_t target_ki_m = micro_active ? 0 : g_pidboard_vel_ki_m;
 
       bool idle_refresh_due =
           omni_wheels_stopped &&
