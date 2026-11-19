@@ -40,8 +40,8 @@ extern "C" {
 #define PID_DEFAULT_MAX_VEL_RPM_X10  4000 /* +/- 400.0 RPM */
 #define PID_CMD_WATCHDOG_MS          RS485_CMD_WATCHDOG_MS
 
-#define PID_DEFAULT_VEL_KP_M         250  /* 0.250 */
-#define PID_DEFAULT_VEL_KI_M         7000 /* 7.000 */
+#define PID_DEFAULT_VEL_KP_M         1500 /* 1.500 (crisp torque response, prevents stick-slip lag) */
+#define PID_DEFAULT_VEL_KI_M         2000 /* 2.000 (anti-windup against gearbox static friction) */
 #define PID_DEFAULT_VEL_KD_M         0    /* 0.000 */
 #define PID_DEFAULT_POS_KP_M         750  /* 0.750 */
 #define PID_DEFAULT_POS_KD_M         1    /* 0.001 */
