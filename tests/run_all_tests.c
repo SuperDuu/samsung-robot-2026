@@ -730,7 +730,7 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
     assert(fabsf(trim_ctrl.heading_trim_deg -
                  (-DRIVE_OMNI_HEADING_TRIM_STEP_DEG)) < 0.001f);
     /* D-pad micro-adjustment test (16=UP, 32=RIGHT, 64=DOWN, 128=LEFT):
-     * Must move extremely slowly in precision crawl mode (DRIVE_OMNI_CRAWL_PCT = 20%) */
+     * Must move in precision crawl mode (DRIVE_OMNI_CRAWL_PCT = 25% = 100 RPM / 0.22 m/s) */
     tin.joy_sum[0] = 100U;
     tin.joy_sum[1] = 100U;
     tin.ps2_btn[0] = DRIVE_PS2_B0_UP; /* 16 */
@@ -740,9 +740,9 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
                          ttargets);
     }
     assert(trim_ctrl.active_speed_pct == DRIVE_OMNI_CRAWL_PCT);
-    /* Target RPM must be very small (~10..20 RPM) for fine micro-adjustment */
+    /* Target RPM must be around 71 RPM (707 rpm_x10) for precision crawl (25% speed, overcoming stiction) */
     for (uint8_t w = 0U; w < 4U; w++) {
-      assert(abs(ttargets[w]) < 200); /* < 20 RPM */
+      assert(abs(ttargets[w]) == 707); /* ~71 RPM */
     }
 
     /* Servo code guard: values 200..203 must NOT trigger D-pad or movement */
@@ -1050,28 +1050,28 @@ static void test_servo_180_and_clamp_toggle(void) {
   /* Configure SERVO_360_CH2 (CH5 / TIM4_CH3 / PB8) as continuous 360 */
   assert(Servo_Config360(SERVO_360_CH2, SERVO_PWM_NEUTRAL_US, 500U, 2.0f, false) == HAL_OK);
 
-  /* 1. Default initial state on TIM4_CH4 (SERVO_CLAMP_CH): 15.0 deg (normal open) */
-  assert(Servo_SetAngle180(SERVO_CLAMP_CH, SERVO_CLAMP_DEFAULT_OPEN_DEG) == HAL_OK);
-  /* Pulse = 500 + (15 / 180) * 2000 = 667 us */
-  assert(g_mock_tim4.CCR4 == 667U);
+  /* 1. Default initial state on TIM4_CH4 (SERVO_CLAMP_CH): 0.0 deg (closed per user spec) */
+  assert(Servo_SetAngle180(SERVO_CLAMP_CH, SERVO_CLAMP_DEFAULT_CLOSE_DEG) == HAL_OK);
+  /* Pulse = 500 + 0 = 500 us */
+  assert(g_mock_tim4.CCR4 == 500U);
 
   Servo_ChannelState_t st;
   assert(Servo_GetState(SERVO_CLAMP_CH, &st));
   assert(st.mode == SERVO_MODE_ANGLE_180);
-  assert(st.current_us == 667U);
-  assert(fabsf(st.last_cmd - 15.0f) < 0.01f);
-
-  /* 2. 1st press (toggle to closed): 0.0 deg */
-  assert(Servo_SetAngle180(SERVO_CLAMP_CH, SERVO_CLAMP_DEFAULT_CLOSE_DEG) == HAL_OK);
-  /* Pulse = 500 + 0 = 500 us */
-  assert(g_mock_tim4.CCR4 == 500U);
-  assert(Servo_GetState(SERVO_CLAMP_CH, &st));
   assert(st.current_us == 500U);
   assert(fabsf(st.last_cmd - 0.0f) < 0.01f);
 
-  /* 3. 2nd press (toggle to open): 15.0 deg */
+  /* 2. 1st press (toggle to open): 40.0 deg */
   assert(Servo_SetAngle180(SERVO_CLAMP_CH, SERVO_CLAMP_DEFAULT_OPEN_DEG) == HAL_OK);
-  assert(g_mock_tim4.CCR4 == 667U);
+  /* Pulse = 500 + (40 / 180) * 2000 = 944 us */
+  assert(g_mock_tim4.CCR4 == 944U);
+  assert(Servo_GetState(SERVO_CLAMP_CH, &st));
+  assert(st.current_us == 944U);
+  assert(fabsf(st.last_cmd - 40.0f) < 0.01f);
+
+  /* 3. 2nd press (toggle to closed): 0.0 deg */
+  assert(Servo_SetAngle180(SERVO_CLAMP_CH, SERVO_CLAMP_DEFAULT_CLOSE_DEG) == HAL_OK);
+  assert(g_mock_tim4.CCR4 == 500U);
 
   /* 4. Full range & clamping boundary checks on TIM4_CH4 */
   assert(Servo_SetAngle180(SERVO_CLAMP_CH, 90.0f) == HAL_OK);
@@ -1105,33 +1105,33 @@ static void test_servo_180_and_clamp_toggle(void) {
   assert(Servo_Config180(SERVO_CLAMP_CH, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false) == HAL_OK);
 
   /* 7. Simulate R1 button toggle state machine */
-  bool clamp_closed = false;
+  bool clamp_opened = false;
   uint8_t prev_r1 = 0U;
   float angles[6];
 
   uint8_t r1_inputs[6] = {0U, 1U, 1U, 0U, 1U, 0U};
-  /* Step 0: unpressed -> open (15 deg)
-   * Step 1: press R1 (rise) -> closed (0 deg)
-   * Step 2: hold R1 -> stays closed (0 deg)
-   * Step 3: release R1 -> stays closed (0 deg)
-   * Step 4: press R1 (rise) -> open (15 deg)
-   * Step 5: release R1 -> stays open (15 deg)
+  /* Step 0: unpressed -> initial (0 deg)
+   * Step 1: press R1 (rise) -> open (40 deg)
+   * Step 2: hold R1 -> stays open (40 deg)
+   * Step 3: release R1 -> stays open (40 deg)
+   * Step 4: press R1 (rise) -> closed (0 deg)
+   * Step 5: release R1 -> stays closed (0 deg)
    */
   for (int i = 0; i < 6; i++) {
     uint8_t r1_now = r1_inputs[i];
     if ((r1_now != 0U) && (prev_r1 == 0U)) {
-      clamp_closed = !clamp_closed;
+      clamp_opened = !clamp_opened;
     }
-    angles[i] = clamp_closed ? SERVO_CLAMP_DEFAULT_CLOSE_DEG
-                             : SERVO_CLAMP_DEFAULT_OPEN_DEG;
+    angles[i] = clamp_opened ? SERVO_CLAMP_DEFAULT_OPEN_DEG
+                             : SERVO_CLAMP_DEFAULT_CLOSE_DEG;
     prev_r1 = r1_now;
   }
-  assert(fabsf(angles[0] - 15.0f) < 0.01f);
-  assert(fabsf(angles[1] - 0.0f) < 0.01f);
-  assert(fabsf(angles[2] - 0.0f) < 0.01f);
-  assert(fabsf(angles[3] - 0.0f) < 0.01f);
-  assert(fabsf(angles[4] - 15.0f) < 0.01f);
-  assert(fabsf(angles[5] - 15.0f) < 0.01f);
+  assert(fabsf(angles[0] - 0.0f) < 0.01f);
+  assert(fabsf(angles[1] - 40.0f) < 0.01f);
+  assert(fabsf(angles[2] - 40.0f) < 0.01f);
+  assert(fabsf(angles[3] - 40.0f) < 0.01f);
+  assert(fabsf(angles[4] - 0.0f) < 0.01f);
+  assert(fabsf(angles[5] - 0.0f) < 0.01f);
 
   printf("      PASS.\n");
 }
