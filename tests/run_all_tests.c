@@ -314,7 +314,7 @@ static void test_bno055_hardening_and_backoff(void) {
   assert(imu.recoveries == 2U);
   assert(g_mock_i2c_recover_calls >= 2U);
 
-  /* (a) Default 6-DoF IMU (0x08) mode & silent brown-out (OPR_MODE -> 0x00, yaw
+  /* (a) Default 9-DoF NDOF (0x0C) mode & silent brown-out (OPR_MODE -> 0x00, yaw
    * -> 0) zero-jump recovery */
   {
     MockHal_ResetAll();
@@ -323,8 +323,8 @@ static void test_bno055_hardening_and_backoff(void) {
     BNO055_IMU_t bo_imu;
     g_mock_bno.yaw_deg = 0.0f;
     assert(BNO055_IMU_Init(&bo_imu, &hi2c3));
-    assert(bo_imu.op_mode == BNO055_OPERATION_MODE_IMU);
-    assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_IMU);
+    assert(bo_imu.op_mode == BNO055_OPERATION_MODE_NDOF);
+    assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_NDOF);
 
     /* Sub-check (a1): silent brown-out while at 0 deg caught by 5 Hz OPR_MODE
      * check + 1-tick resync */
@@ -334,7 +334,7 @@ static void test_bno055_hardening_and_backoff(void) {
       assert(BNO055_IMU_Update(&bo_imu));
     }
     assert(bo_imu.mode_resets == 1U);
-    assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_IMU);
+    assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_NDOF);
     assert(!bo_imu.resync_yaw_prev);
 
     g_mock_bno.yaw_deg = 90.0f;
@@ -349,7 +349,7 @@ static void test_bno055_hardening_and_backoff(void) {
     MockHal_AdvanceTick(10U);
     assert(BNO055_IMU_Update(&bo_imu));
     assert(bo_imu.mode_resets == 2U);
-    assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_IMU);
+    assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_NDOF);
     assert(fabsf(bo_imu.yaw - 90.0f) < 0.1f);
 
     /* Post-restore resync + +15 deg relative turn */
@@ -363,7 +363,7 @@ static void test_bno055_hardening_and_backoff(void) {
   }
 
   /* (b) Synthetic ZRO drifts (+0.25, -0.31, +0.19 deg/s) learned during 1.5s
-   * stillness cancel 60s drift (< 0.8 deg) */
+   * stillness cancel 60s drift (< 0.8 deg) in 6-DoF fallback mode */
   {
     const double test_drifts[3] = {0.25, -0.31, 0.19};
     I2C_HandleTypeDef hi2c3 = {.Instance = I2C3};
@@ -374,7 +374,7 @@ static void test_bno055_hardening_and_backoff(void) {
       g_mock_bno.present = true;
       g_mock_bno.yaw_deg = 0.0f;
       g_mock_bno.calib_stat = 0xFFU;
-      assert(BNO055_IMU_Init(&drift_imu, &hi2c3));
+      assert(BNO055_IMU_InitWithMode(&drift_imu, &hi2c3, BNO055_OPERATION_MODE_IMU));
 
       BNO055_IMU_SetStationaryHint(&drift_imu, true);
       double sim_drift_deg = 0.0;
