@@ -558,7 +558,7 @@
       "netlist": "",
       "plot": "GERBER_FIX/",
       "specctra_dsn": "",
-      "step": "",
+      "step": "HB_RBC.step",
       "vrml": ""
     },
     "page_layout_descr_file": ""

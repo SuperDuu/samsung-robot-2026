@@ -1,0 +1,4 @@
+(fp_lib_table
+	(version 7)
+	(lib (name "SolderPAD-2x4mm") (type "KiCad") (uri "${KIPRJMOD}/SolderPAD-2x4mm.pretty") (options "") (descr ""))
+)

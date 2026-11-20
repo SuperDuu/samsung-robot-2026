@@ -7,7 +7,7 @@
 		(at 0 -0.5 0)
 		(unlocked yes)
 		(layer "F.SilkS")
-		(uuid "2a2b6bdc-0709-4a2c-8aa6-1f3ed02353a6")
+		(uuid "fefee383-88fe-4a02-8420-736052ef9967")
 		(effects
 			(font
 				(size 1 1)
@@ -19,7 +19,7 @@
 		(at 0 1 0)
 		(unlocked yes)
 		(layer "F.Fab")
-		(uuid "abcc2b4a-20ed-45a5-b3cd-78f4b0c2afbd")
+		(uuid "a9b9e581-9223-449f-b685-586918bbaf1f")
 		(effects
 			(font
 				(size 1 1)
@@ -32,7 +32,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "1d03c74f-0806-44ea-9d6c-937ab1dbd1b1")
+		(uuid "6523e27b-daf9-4814-b66f-8cebb609c3ba")
 		(effects
 			(font
 				(size 1 1)
@@ -45,7 +45,7 @@
 		(unlocked yes)
 		(layer "F.Fab")
 		(hide yes)
-		(uuid "9e08bf3e-8d75-4fed-92ad-daf7a5eae2bd")
+		(uuid "657ee924-ae4c-4de6-98e9-6038e5b20bcb")
 		(effects
 			(font
 				(size 1 1)
@@ -65,13 +65,13 @@
 		)
 		(fill no)
 		(layer "F.SilkS")
-		(uuid "e06b467b-a169-44d0-ad87-f3cf819a2fac")
+		(uuid "5d24482f-7d8f-4b87-823d-2674f4bfb2b4")
 	)
 	(fp_text user "${REFERENCE}"
 		(at 0 2.5 0)
 		(unlocked yes)
 		(layer "F.Fab")
-		(uuid "93013947-fa1a-414d-a7cb-9e3155b80114")
+		(uuid "e06c154d-8d9f-4a90-be3d-d05ebd9c368b")
 		(effects
 			(font
 				(size 1 1)
@@ -79,12 +79,29 @@
 			)
 		)
 	)
-	(pad "1" smd roundrect
+	(pad "1" thru_hole roundrect
 		(at 0 0)
 		(size 2 4)
-		(layers "F.Cu" "F.SilkS")
+		(drill 0.7)
+		(layers "*.Cu" "*.Mask")
+		(remove_unused_layers no)
 		(roundrect_rratio 0.25)
-		(uuid "306e2275-c6cf-4084-830e-22a966fa2409")
+		(uuid "c3863e7a-003b-4b6e-b96f-bde461a4a679")
+		(padstack
+			(mode front_inner_back)
+			(layer "Inner"
+				(shape roundrect)
+				(size 2 4)
+				(roundrect_rratio 0.25)
+				(zone_connect -1)
+			)
+			(layer "B.Cu"
+				(shape roundrect)
+				(size 2 4)
+				(roundrect_rratio 0.25)
+				(zone_connect -1)
+			)
+		)
 	)
 	(embedded_fonts no)
 )

@@ -79,6 +79,7 @@
             "show": true
           }
         ],
+        "filter_scope": "reference",
         "filter_string": "",
         "group_symbols": true,
         "include_excluded_from_bom": true,
@@ -170,6 +171,7 @@
         "clearance": "error",
         "connection_width": "warning",
         "copper_edge_clearance": "ignore",
+        "copper_outside_board": "warning",
         "copper_sliver": "warning",
         "courtyards_overlap": "error",
         "creepage": "error",
@@ -184,6 +186,7 @@
         "footprint_symbol_field_mismatch": "warning",
         "footprint_symbol_mismatch": "warning",
         "footprint_type_mismatch": "ignore",
+        "hole_aspect_ratio": "error",
         "hole_clearance": "error",
         "hole_to_hole": "warning",
         "holes_co_located": "warning",
@@ -195,7 +198,11 @@
         "lib_footprint_issues": "warning",
         "lib_footprint_mismatch": "ignore",
         "malformed_courtyard": "error",
+        "malformed_microvia_stack_span": "error",
+        "microvia_crosses_core": "warning",
         "microvia_drill_out_of_range": "error",
+        "microvia_stack_depth": "error",
+        "microvia_stack_not_filled": "warning",
         "mirrored_text_on_front_layer": "warning",
         "missing_courtyard": "ignore",
         "missing_footprint": "warning",
@@ -353,16 +360,32 @@
           "drill": 0.5
         }
       ],
+      "via_stack_presets": [],
       "zones_allow_external_fillets": false
+    },
+    "idf_export": {
+      "calculate_height_from_models": true,
+      "include_dnp": true,
+      "include_unspecified": true,
+      "origin_mode": 2,
+      "part_number_field": "Value",
+      "units": 0,
+      "user_origin_x": 0.0,
+      "user_origin_y": 0.0
     },
     "ipc2581": {
       "bom_rev": "",
+      "custom_sections": false,
       "dist": "",
       "distpn": "",
       "internal_id": "",
       "mfg": "",
+      "mode": "",
       "mpn": "",
-      "sch_revision": ""
+      "net_names": "",
+      "ref_des": "",
+      "sch_revision": "",
+      "sections": ""
     },
     "layer_pairs": [],
     "layer_presets": [],
@@ -565,7 +588,9 @@
       "different_unit_net": "error",
       "duplicate_reference": "error",
       "duplicate_sheet_names": "error",
+      "duplicate_sheet_suffix": "error",
       "empty_label_name": "error",
+      "empty_power_value": "error",
       "endpoint_off_grid": "warning",
       "extra_units": "error",
       "field_name_whitespace": "warning",
@@ -595,6 +620,7 @@
       "pin_not_driven": "error",
       "pin_to_pin": "warning",
       "power_pin_not_driven": "error",
+      "ref_suffix_mismatch": "warning",
       "same_local_global_label": "warning",
       "same_local_global_power": "warning",
       "similar_label_and_power": "warning",
@@ -610,16 +636,18 @@
       "unresolved_variable": "error",
       "variant_symbol_incompatible": "warning",
       "variant_symbol_invalid": "error",
-      "wire_dangling": "error"
+      "wire_dangling": "error",
+      "wired_implicit_power": "warning"
     }
   },
   "libraries": {
+    "pinned_design_block_libs": [],
     "pinned_footprint_libs": [],
     "pinned_symbol_libs": []
   },
   "meta": {
     "filename": "tay_dk.kicad_pro",
-    "version": 3
+    "version": 4
   },
   "net_settings": {
     "classes": [
@@ -661,7 +689,7 @@
       "netlist": "",
       "plot": "gerber_tdk/",
       "specctra_dsn": "",
-      "step": "",
+      "step": "tay_dk.step",
       "vrml": ""
     },
     "page_layout_descr_file": ""
@@ -669,7 +697,9 @@
   "schematic": {
     "annotate_start_num": 0,
     "annotation": {
+      "increment_pasted_suffix": true,
       "method": 0,
+      "reused_sheet_suffixes": false,
       "sort_order": 0
     },
     "bom_export_filename": "${PROJECTNAME}.csv",
@@ -749,6 +779,7 @@
           "show": true
         }
       ],
+      "filter_scope": "reference",
       "filter_string": "",
       "group_symbols": true,
       "include_excluded_from_bom": true,
@@ -756,7 +787,7 @@
       "sort_asc": true,
       "sort_field": "Reference"
     },
-    "bus_aliases": {},
+    "bus_aliases": null,
     "compare_symbols": {
       "dnp_flags": false,
       "exclude_from_board_flags": true,
@@ -792,6 +823,7 @@
       "operating_point_overlay_v_range": "~V",
       "overbar_offset_ratio": 1.23,
       "pin_symbol_size": 25.0,
+      "show_dnp_markers": true,
       "text_offset_ratio": 0.15
     },
     "legacy_lib_dir": "",

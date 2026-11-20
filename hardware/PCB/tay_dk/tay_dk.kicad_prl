@@ -9,6 +9,7 @@
     "net_color_mode": 1,
     "opacity": {
       "images": 0.6,
+      "outside_group": 1.0,
       "pads": 1.0,
       "shapes": 1.0,
       "tracks": 1.0,
@@ -52,7 +53,12 @@
       "conflict_shadows",
       "shapes",
       "board_outline_area",
+<<<<<<< HEAD
+      "ly_points",
+      "via_stitching"
+=======
       "ly_points"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
     ],
     "visible_layers": "ffffffff_ffffffff_fffffff5_ffffffff",
     "zone_display_mode": 0
@@ -65,7 +71,11 @@
   },
   "meta": {
     "filename": "tay_dk.kicad_prl",
+<<<<<<< HEAD
+    "version": 7
+=======
     "version": 5
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
   },
   "net_inspector_panel": {
     "col_hidden": [

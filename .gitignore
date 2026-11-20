@@ -8,6 +8,11 @@ _restore_backup*/
 
 # Math foundations (Strict rule: MUST NOT be committed to git)
 MATH_FOUNDATIONS.md
+.history/
+*.stl
+*.STL
+~$*.SLD*
+~$*.sld*
 
 # Local debug log (MUST NOT be committed to git)
 DEBUG_LOG.md
