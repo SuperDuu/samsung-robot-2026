@@ -509,6 +509,12 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
   assert(fabsf(fabsf(ctrl.omega_fb_pct) - DRIVE_OMNI_TRIM_ROT_PCT) < 0.01f);
   assert(abs(targets[0]) == 200); /* 20.0 RPM per wheel */
 
+  /* Boosted yaw rotation: Holding L1 (di nhanh) + L2 boosts rotation 3.75x to 75.0 RPM (750 rpm_x10) */
+  in.ps2_btn[1] = (uint8_t)(DRIVE_PS2_B1_L1 | DRIVE_PS2_B1_L2);
+  Drive_OmniCtrlStep(&ctrl, &in, false, 15.0f, true, 4000, modes, targets);
+  assert(fabsf(fabsf(ctrl.omega_fb_pct) - DRIVE_OMNI_BOOST_ROT_PCT) < 0.01f);
+  assert(abs(targets[0]) == 750); /* 75.0 RPM per wheel: 3.75x faster! */
+
   /* Release L2: target_heading_deg remains at setpoint (0 deg), while heading_trim_deg absorbs offset */
   in.ps2_btn[1] = 0U;
   Drive_OmniCtrlStep(&ctrl, &in, false, 18.0f, true, 4000, modes, targets);
@@ -598,6 +604,26 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
     Drive_OmniCtrlStep(&c_fc, &fc_in, false, 92.5f, true, 4000, m_lo, t_lo);
     assert(m_lo[0] == DRIVE_WHEEL_MODE_BRAKE && t_lo[0] == 0 && t_lo[1] == 0 &&
            t_lo[2] == 0 && t_lo[3] == 0);
+
+    /* Fast Angle Turn Test: Snapping 180 deg with L1 (boost) held vs without L1 */
+    Drive_OmniCtrl_t snap_norm, snap_boost;
+    Drive_OmniCtrlInit(&snap_norm, true);
+    Drive_OmniCtrlInit(&snap_boost, true);
+    Drive_Ps2Input_t snap_in = {.joy_sum = {100U, 100U}, .valid = true};
+    uint8_t smodes[4];
+    int16_t t_norm[4], t_boost[4];
+
+    /* Step 1: Normal snap to 180 deg (Cross button only) */
+    snap_in.ps2_btn[1] = DRIVE_PS2_B1_CROSS;
+    Drive_OmniCtrlStep(&snap_norm, &snap_in, false, 0.0f, true, 4000, smodes, t_norm);
+
+    /* Step 2: Boosted snap to 180 deg (L1 Boost + Cross button) */
+    snap_in.ps2_btn[1] = (uint8_t)(DRIVE_PS2_B1_L1 | DRIVE_PS2_B1_CROSS);
+    Drive_OmniCtrlStep(&snap_boost, &snap_in, false, 0.0f, true, 4000, smodes, t_boost);
+
+    /* Boosted snap must have 2.5x higher slew rate and significantly higher wheel target RPM */
+    assert(fabsf(snap_boost.slew_heading_deg) >= fabsf(snap_norm.slew_heading_deg) * 2.4f);
+    assert(abs(t_boost[0]) > abs(t_norm[0]));
   }
 
   /* Rigid-body curvature feedforward ratio for R=2050, W=320: inside wheel
