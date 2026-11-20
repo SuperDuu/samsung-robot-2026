@@ -339,26 +339,31 @@ int main(void) {
   if (Servo_Init(&htim3, &htim4, &htim12) != HAL_OK) {
     Error_Handler();
   }
-  /* Configure Gripper Clamp: 180 deg servo on CH1 (J2) and CH2 (J34) */
+  /* Actuator channel configuration:
+   *  - SERVO_360_CH1 (CH4 / TIM12_CH2 / PB15 / J36): Continuous 360 #1 (Right Stick UP/DOWN)
+   *  - SERVO_360_CH2 (CH5 / TIM4_CH3  / PB8  / J37): Continuous 360 #2 (Right Stick LEFT/RIGHT)
+   *  - SERVO_CLAMP_CH (CH6 / TIM4_CH4 / PB9  / J38): Positional 180 Clamp (R1 toggle 15 <-> 0 deg)
+   *  - CH1/CH2/CH3: Additional 180/270 ports available
+   */
+  (void)Servo_Config180(SERVO_CLAMP_CH, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false);
   (void)Servo_Config180(SERVO_CH_1, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false);
   (void)Servo_Config180(SERVO_CH_2, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false);
   (void)Servo_Config270(SERVO_CH_3, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false);
-  (void)Servo_Config360(SERVO_CH_4, SERVO_PWM_NEUTRAL_US,
+  (void)Servo_Config360(SERVO_360_CH1, SERVO_PWM_NEUTRAL_US,
                         SERVO_360_DEFAULT_HALF_SPAN_US,
                         SERVO_DEFAULT_DEADBAND_PCT, false);
-  (void)Servo_Config360(SERVO_CH_5, SERVO_PWM_NEUTRAL_US,
+  (void)Servo_Config360(SERVO_360_CH2, SERVO_PWM_NEUTRAL_US,
                         SERVO_360_DEFAULT_HALF_SPAN_US,
                         SERVO_DEFAULT_DEADBAND_PCT, false);
-  (void)Servo_Config360(SERVO_CH_6, SERVO_PWM_NEUTRAL_US,
-                        SERVO_360_DEFAULT_HALF_SPAN_US,
-                        SERVO_DEFAULT_DEADBAND_PCT, false);
+
   /* Initial clamp state: normal 15 deg (open) */
+  (void)Servo_SetAngle180(SERVO_CLAMP_CH, SERVO_CLAMP_DEFAULT_OPEN_DEG);
   (void)Servo_SetAngle180(SERVO_CH_1, SERVO_CLAMP_DEFAULT_OPEN_DEG);
   (void)Servo_SetAngle180(SERVO_CH_2, SERVO_CLAMP_DEFAULT_OPEN_DEG);
   g_debug.clamp.closed = 0U;
   g_debug.clamp.angle_deg = SERVO_CLAMP_DEFAULT_OPEN_DEG;
   Servo_ChannelState_t clamp_init_st;
-  if (Servo_GetState(SERVO_CH_1, &clamp_init_st)) {
+  if (Servo_GetState(SERVO_CLAMP_CH, &clamp_init_st)) {
     g_debug.clamp.pulse_us = clamp_init_st.current_us;
   }
   g_debug.servo.speed_pct = 60;
@@ -503,6 +508,7 @@ int main(void) {
         g_clamp_closed = !g_clamp_closed;
         float clamp_angle = g_clamp_closed ? SERVO_CLAMP_DEFAULT_CLOSE_DEG
                                            : SERVO_CLAMP_DEFAULT_OPEN_DEG;
+        (void)Servo_SetAngle180(SERVO_CLAMP_CH, clamp_angle);
         (void)Servo_SetAngle180(SERVO_CH_1, clamp_angle);
         (void)Servo_SetAngle180(SERVO_CH_2, clamp_angle);
         g_debug.clamp.closed = g_clamp_closed ? 1U : 0U;
@@ -725,12 +731,13 @@ int main(void) {
       s_prev_dbg_clamp_closed = g_debug.clamp.closed;
       float clamp_angle = g_clamp_closed ? SERVO_CLAMP_DEFAULT_CLOSE_DEG
                                          : SERVO_CLAMP_DEFAULT_OPEN_DEG;
+      (void)Servo_SetAngle180(SERVO_CLAMP_CH, clamp_angle);
       (void)Servo_SetAngle180(SERVO_CH_1, clamp_angle);
       (void)Servo_SetAngle180(SERVO_CH_2, clamp_angle);
       g_debug.clamp.angle_deg = clamp_angle;
     }
     Servo_ChannelState_t clamp_st;
-    if (Servo_GetState(SERVO_CH_1, &clamp_st)) {
+    if (Servo_GetState(SERVO_CLAMP_CH, &clamp_st)) {
       g_debug.clamp.pulse_us = clamp_st.current_us;
     }
 

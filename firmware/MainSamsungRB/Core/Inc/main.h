@@ -93,7 +93,7 @@ typedef struct
     uint16_t pulse_us;         /* Current PWM pulse width in microseconds */
   } servo;
 
-  /* 7. Gripper Clamp (180 deg servo on CH1/J2 & CH2/J34) */
+  /* 7. Gripper Clamp (180 deg servo on SERVO_CLAMP_CH / TIM4_CH4 / PB9 / J38) */
   struct {
     uint8_t  closed;           /* 0 = Open (15 deg), 1 = Closed (0 deg) */
     float    angle_deg;        /* Commanded angle: 15.0f or 0.0f */

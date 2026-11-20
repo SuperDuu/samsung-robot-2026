@@ -33,6 +33,15 @@ extern "C" {
 #define SERVO_360_DEFAULT_HALF_SPAN_US 500U   /* 1000..2000 us continuous range (pass 1000 for 500..2500 us) */
 #define SERVO_DEFAULT_DEADBAND_PCT     2.0f
 
+/* Logical actuator channel mapping on Robot R1:
+ *  - SERVO_360_CH1:  SERVO_CH_4 (PB15 - TIM12_CH2, J36) - Continuous 360 #1 (Right Stick UP/DOWN)
+ *  - SERVO_360_CH2:  SERVO_CH_5 (PB8  - TIM4_CH3,  J37) - Continuous 360 #2 (Right Stick LEFT/RIGHT)
+ *  - SERVO_CLAMP_CH: SERVO_CH_6 (PB9  - TIM4_CH4,  J38) - Positional 180 Clamp (R1 toggle 15 deg <-> 0 deg)
+ */
+#define SERVO_360_CH1                  SERVO_CH_4
+#define SERVO_360_CH2                  SERVO_CH_5
+#define SERVO_CLAMP_CH                 SERVO_CH_6
+
 typedef enum
 {
   SERVO_CH_1 = 0U, /* PB0  - TIM3_CH3  (J2)  */
