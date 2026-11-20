@@ -37,7 +37,7 @@ extern "C" {
 
 #define DRIVE_OMNI_GEAR_COUNT            4U
 #define DRIVE_OMNI_DEFAULT_GEAR          0U      /* 33% default base speed tier (3x boost with L1 reaches 100%) */
-#define DRIVE_OMNI_CRAWL_PCT             25U     /* Precision crawl speed (25% = 100 RPM / 0.22 m/s, overcomes stiction) */
+#define DRIVE_OMNI_CRAWL_PCT             15U     /* Precision crawl speed tuned by operator on field */
 #define DRIVE_OMNI_TRIM_ROT_PCT          10.0f   /* 20 RPM fine yaw adjustment (10% of 2000 rpm_x10) */
 #define DRIVE_OMNI_ROT_STEP_DEG          1.2f    /* 120 deg/s at 100 Hz while L1/R1 held */
 #define DRIVE_OMNI_HEADING_TRIM_STEP_DEG 0.5f    /* SELECT + L1/R1 live IMU trim per press */
