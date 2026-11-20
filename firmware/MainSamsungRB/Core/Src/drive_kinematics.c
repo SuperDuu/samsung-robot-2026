@@ -239,7 +239,11 @@ void Drive_OmniComputeFromPs2(Drive_OmniState_t *state,
     theta_rad = wrapped_deg * DRIVE_DEG_TO_RAD_F;
   }
 
-  float v_scale = ((float)max_abs_rpm_x10 * 33.0f) * 0.01f;
+  bool dpad_active = (in->ps2_btn[0] < 200U) &&
+                     ((in->ps2_btn[0] & (DRIVE_PS2_B0_UP | DRIVE_PS2_B0_RIGHT |
+                                         DRIVE_PS2_B0_DOWN | DRIVE_PS2_B0_LEFT)) != 0U);
+  float speed_pct = dpad_active ? (float)DRIVE_OMNI_CRAWL_PCT : 33.0f;
+  float v_scale = ((float)max_abs_rpm_x10 * speed_pct) * 0.01f;
   if (boost_3x) {
     v_scale = fminf(v_scale * 3.0f, (float)max_abs_rpm_x10);
   }
