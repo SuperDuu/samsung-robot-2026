@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file    servo.h
   * @brief   2-mode Servo driver (0-270 deg positional & 360 deg continuous speed)
-  *          for the 6 PWM outputs on MainRB (TIM3 CH3/4, TIM12 CH1/2, TIM4 CH3/4).
+  *          for the PWM outputs on MainRB2 (TIM3 CH3/4, TIM12 CH2, TIM4 CH3/4).
   *          Requires 50 Hz timer base: PSC = 83, ARR = 19999 -> 1 tick = 1 us.
   ******************************************************************************
   */
@@ -37,7 +37,7 @@ typedef enum
 {
   SERVO_CH_1 = 0U, /* PB0  - TIM3_CH3  (J2)  */
   SERVO_CH_2 = 1U, /* PB1  - TIM3_CH4  (J34) */
-  SERVO_CH_3 = 2U, /* PB14 - TIM12_CH1 (J35) */
+  SERVO_CH_3 = 2U, /* Reserved: PB14 (J35) is BAUMER_INPUT */
   SERVO_CH_4 = 3U, /* PB15 - TIM12_CH2 (J36) */
   SERVO_CH_5 = 4U, /* PB8  - TIM4_CH3  (J37) */
   SERVO_CH_6 = 5U, /* PB9  - TIM4_CH4  (J38) */

@@ -33,6 +33,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define PIDBOARD_TEST_REFRESH_MS 10U
 
 /* USER CODE END PD */
 
@@ -54,6 +55,10 @@ DMA_HandleTypeDef hdma_usart2_tx;
 PID_Controller_t g_pid = {0};
 Pid_Debug_t g_pid_debug = {0};
 RS485_Bus_t g_rs485 = {0};
+volatile struct {
+  int32_t target_rpm_x10;
+  uint8_t enable;
+} g_pidboard_test = {0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -75,6 +80,44 @@ static void pid_update_status_leds(uint32_t now_ms);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+static void pid_run_local_speed_test(uint32_t now_ms) {
+  static bool running = false;
+  static uint32_t last_refresh_ms = 0U;
+
+  if (!running && (g_pidboard_test.enable == 0U)) {
+    return;
+  }
+
+  bool stop = (g_pidboard_test.enable == 0U) || (g_pid.estop_latched != 0U);
+  if (stop) {
+    g_pidboard_test.enable = 0U;
+    if (!running) {
+      return;
+    }
+    running = false;
+  } else if (!running) {
+    running = true;
+  } else if ((uint32_t)(now_ms - last_refresh_ms) < PIDBOARD_TEST_REFRESH_MS) {
+    return;
+  }
+
+  int32_t target = running ? g_pidboard_test.target_rpm_x10 : 0;
+  RS485_WheelMode_t mode = (target == 0) ? RS485_WHEEL_BRAKE : RS485_WHEEL_VELOCITY;
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
+  uint32_t command_ms = HAL_GetTick();
+  if (RS485_IsLinkAlive(&g_rs485, command_ms, PID_CMD_WATCHDOG_MS)) {
+    g_pidboard_test.enable = 0U;
+    running = false;
+  } else {
+    PID_ApplyCommand(&g_pid, mode, target, 0U, command_ms);
+  }
+  if (primask == 0U) {
+    __enable_irq();
+  }
+  last_refresh_ms = command_ms;
+}
+
 static void pid_apply_motor_outputs(uint8_t gate_enable,
                                     int32_t hw_duty_permille) {
   /* S and S2 (~SD inputs of both IR2184) MUST remain permanently SET (HIGH
@@ -332,6 +375,8 @@ int main(void) {
     }
 
     RS485_TickMs(&g_rs485, now_ms);
+
+    pid_run_local_speed_test(now_ms);
 
     if ((g_pid.pending_flash_save != 0U) &&
         (g_rs485.pending_reply_valid == 0U) && (g_rs485.tx_active == 0U) &&

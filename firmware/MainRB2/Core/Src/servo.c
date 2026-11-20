@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file    servo.c
   * @brief   2-mode Servo driver (0-270 deg positional & 360 deg continuous speed)
-  *          for the 6 PWM outputs on MainRB (TIM3 CH3/4, TIM12 CH1/2, TIM4 CH3/4).
+  *          for the PWM outputs on MainRB2 (TIM3 CH3/4, TIM12 CH2, TIM4 CH3/4).
   ******************************************************************************
   */
 
@@ -83,8 +83,6 @@ HAL_StatusTypeDef Servo_Init(TIM_HandleTypeDef *htim3,
   s_servo.hw[SERVO_CH_1].tim_ch = TIM_CHANNEL_3; /* PB0 */
   s_servo.hw[SERVO_CH_2].htim   = htim3;
   s_servo.hw[SERVO_CH_2].tim_ch = TIM_CHANNEL_4; /* PB1 */
-  s_servo.hw[SERVO_CH_3].htim   = htim12;
-  s_servo.hw[SERVO_CH_3].tim_ch = TIM_CHANNEL_1; /* PB14 */
   s_servo.hw[SERVO_CH_4].htim   = htim12;
   s_servo.hw[SERVO_CH_4].tim_ch = TIM_CHANNEL_2; /* PB15 */
   s_servo.hw[SERVO_CH_5].htim   = htim4;

@@ -99,6 +99,14 @@ static void itc_enter_state(ITC_Auto_t *fsm, ITC_State_t next, uint32_t now_ms)
   }
 }
 
+void ITC_AutoCancelCalibration(ITC_Auto_t *fsm, uint32_t now_ms)
+{
+  if ((fsm != NULL) && (fsm->state == ITC_STATE_CAL_SWEEP))
+  {
+    itc_enter_state(fsm, ITC_STATE_IDLE, now_ms);
+  }
+}
+
 static int16_t itc_moderate_speed_for_skew(const ITC_Auto_t *fsm,
                                            const ITC_AutoInput_t *in,
                                            int16_t cruise_rpm)

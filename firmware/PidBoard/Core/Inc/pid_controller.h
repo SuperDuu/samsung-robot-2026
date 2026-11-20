@@ -26,7 +26,7 @@ extern "C" {
 #include <stdint.h>
 
 #ifndef PID_DEFAULT_NODE_ID
-#define PID_DEFAULT_NODE_ID          1U
+#define PID_DEFAULT_NODE_ID          2U
 #endif
 
 #define PID_FLASH_PAGE_INDEX         15U

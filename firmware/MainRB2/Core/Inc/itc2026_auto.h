@@ -109,6 +109,7 @@ typedef struct
 
 void ITC_AutoInit(ITC_Auto_t *fsm, int16_t cruise_rpm_x10, float default_exit_yaw_deg);
 void ITC_AutoSetCruiseSpeed(ITC_Auto_t *fsm, int16_t cruise_rpm_x10);
+void ITC_AutoCancelCalibration(ITC_Auto_t *fsm, uint32_t now_ms);
 void ITC_AutoStep(ITC_Auto_t *fsm, const ITC_AutoInput_t *in, ITC_AutoOutput_t *out);
 
 #ifdef __cplusplus

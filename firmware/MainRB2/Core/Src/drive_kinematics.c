@@ -668,6 +668,68 @@ void Drive_DiffCompute(int16_t linear_rpm_x10, int16_t angular_rpm_x10,
   }
 }
 
+void Drive_StraightStep(Drive_StraightState_t *state, int16_t linear_rpm_x10,
+                        int16_t max_abs_rpm_x10, bool estop,
+                        const Drive_StraightFeedback_t *feedback,
+                        uint8_t out_modes[DRIVE_DIFF_WHEEL_COUNT],
+                        int16_t out_targets[DRIVE_DIFF_WHEEL_COUNT]) {
+  if (state == NULL) {
+    return;
+  }
+  if (estop || (linear_rpm_x10 == 0) || (feedback == NULL) || !feedback->wheels_ok) {
+    *state = (Drive_StraightState_t){0};
+    Drive_DiffCompute(0, 0, max_abs_rpm_x10, estop, out_modes, out_targets);
+    return;
+  }
+
+  if (max_abs_rpm_x10 <= 0) {
+    max_abs_rpm_x10 = DRIVE_DEFAULT_MAX_RPMX10;
+  }
+  linear_rpm_x10 = (int16_t)drive_clampf((float)linear_rpm_x10,
+                                         -(float)max_abs_rpm_x10,
+                                         (float)max_abs_rpm_x10);
+  int8_t direction = (linear_rpm_x10 > 0) ? 1 : -1;
+  float speed_gap = (float)feedback->rpm_x10[0] - (float)feedback->rpm_x10[1];
+  if (state->direction != direction) {
+    *state = (Drive_StraightState_t){.speed_gap_x10 = speed_gap,
+                                    .direction = direction};
+  }
+  state->speed_gap_x10 += 0.20f * (speed_gap - state->speed_gap_x10);
+
+  float speed_limit = fabsf((float)linear_rpm_x10);
+  float sync_limit = fminf(70.0f, 0.15f * speed_limit);
+  float angular = drive_clampf(0.20f * state->speed_gap_x10, -sync_limit, sync_limit);
+
+  if (feedback->imu_ok && isfinite(feedback->yaw_deg)) {
+    if (!state->heading_locked) {
+      state->yaw_target_deg = feedback->yaw_deg;
+      state->yaw_rate_dps = 0.0f;
+      state->heading_locked = true;
+    } else {
+      uint32_t dt = feedback->yaw_ms - state->previous_yaw_ms;
+      if ((dt != 0U) && (dt <= 100U)) {
+        float step = Drive_WrapAngleDeg(feedback->yaw_deg - state->previous_yaw_deg);
+        float rate = step * 1000.0f / (float)dt;
+        state->yaw_rate_dps += 0.25f * (rate - state->yaw_rate_dps);
+      } else if (dt > 100U) {
+        state->yaw_rate_dps = 0.0f;
+      }
+    }
+    state->previous_yaw_deg = feedback->yaw_deg;
+    state->previous_yaw_ms = feedback->yaw_ms;
+    float yaw_error = Drive_WrapAngleDeg(state->yaw_target_deg - feedback->yaw_deg);
+    /* Positive angular command increases yaw on the MainRB2 drivetrain. */
+    angular += 50.0f * yaw_error - 3.0f * state->yaw_rate_dps;
+  } else {
+    state->heading_locked = false;
+  }
+
+  float trim_limit = fminf(450.0f, 0.45f * speed_limit);
+  int16_t trim = (int16_t)drive_roundf_i32(drive_clampf(angular, -trim_limit, trim_limit));
+  Drive_DiffCompute(linear_rpm_x10, trim, max_abs_rpm_x10, false,
+                    out_modes, out_targets);
+}
+
 void Drive_LineFollowReset(Drive_LineFollowState_t *st) {
   if (st == NULL) {
     return;
@@ -724,7 +786,7 @@ static uint8_t drive_resolve_bar_count(uint8_t mask, uint8_t count) {
 static void drive_line_follow_dual_core(
     Drive_LineFollowState_t *st, const Drive_LineGains_t *gains, bool cal_done,
     int16_t base_rpm_x10, uint8_t lead_mask, uint8_t lead_count,
-    int16_t lead_err_x10, uint8_t front_count, int16_t front_err_x10,
+    int16_t lead_err_x10, int16_t steer_limit, uint8_t front_count, int16_t front_err_x10,
     uint8_t rear_count, int16_t rear_err_x10, bool wide_guard, uint32_t now_ms,
     bool estop, uint8_t out_modes[DRIVE_DIFF_WHEEL_COUNT],
     int16_t out_targets[DRIVE_DIFF_WHEEL_COUNT]) {
@@ -769,7 +831,8 @@ static void drive_line_follow_dual_core(
    * angular) in BOTH directions. */
   int32_t lat_dir_sign = (base_rpm_x10 >= 0) ? -1 : +1;
   int32_t ff = drive_compute_curvature_ff(gains, base_rpm_x10);
-  int32_t max_lim = (int32_t)max_rpm_x10;
+  int32_t max_lim = ((steer_limit > 0) && (steer_limit < max_rpm_x10))
+                        ? steer_limit : max_rpm_x10;
 
   if ((lead_mask != 0U) && (!wide_guard || (lead_count <= narrow_max))) {
     bool dual_ready = wide_guard && (yaw_kp > 0) && (front_count >= 1U) &&
@@ -842,6 +905,28 @@ static void drive_line_follow_dual_core(
   Drive_DiffCompute(0, 0, max_rpm_x10, false, out_modes, out_targets);
 }
 
+void Drive_LineFollowFrontStep(Drive_LineFollowState_t *st,
+                               const Drive_LineGains_t *gains, bool cal_done,
+                               int16_t base_rpm_x10, uint8_t front_mask,
+                               int16_t front_centroid_x10, uint32_t now_ms,
+                               bool estop,
+                               uint8_t out_modes[DRIVE_DIFF_WHEEL_COUNT],
+                               int16_t out_targets[DRIVE_DIFF_WHEEL_COUNT]) {
+  if ((base_rpm_x10 <= 0) || (front_mask == 0U) || (front_mask == UINT8_MAX)) {
+    Drive_LineFollowReset(st);
+    Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, estop, out_modes, out_targets);
+    return;
+  }
+
+  int16_t steer_limit = (int16_t)(((int32_t)base_rpm_x10 * 65) / 100);
+  if (steer_limit == 0) {
+    steer_limit = 1;
+  }
+  drive_line_follow_dual_core(st, gains, cal_done, base_rpm_x10, front_mask,
+                              1U, front_centroid_x10, steer_limit, 0U, 0, 0U, 0,
+                              false, now_ms, estop, out_modes, out_targets);
+}
+
 void Drive_LineFollowStep(Drive_LineFollowState_t *st,
                           const Drive_LineGains_t *gains, bool cal_done,
                           int16_t base_rpm_x10, uint8_t active_mask,
@@ -851,7 +936,7 @@ void Drive_LineFollowStep(Drive_LineFollowState_t *st,
   int16_t err_x10 = (int16_t)((int32_t)line_error * 10);
   uint8_t cnt = (active_mask != 0U) ? 1U : 0U;
   drive_line_follow_dual_core(st, gains, cal_done, base_rpm_x10, active_mask,
-                              cnt, err_x10, cnt, err_x10, 0U, 0, false, now_ms,
+                              cnt, err_x10, 0, cnt, err_x10, 0U, 0, false, now_ms,
                               estop, out_modes, out_targets);
 }
 
@@ -864,7 +949,7 @@ void Drive_LineFollowCentroidStep(Drive_LineFollowState_t *st,
                                   int16_t out_targets[DRIVE_DIFF_WHEEL_COUNT]) {
   uint8_t cnt = (active_mask != 0U) ? 1U : 0U;
   drive_line_follow_dual_core(st, gains, cal_done, base_rpm_x10, active_mask,
-                              cnt, line_err_x10, cnt, line_err_x10, 0U, 0,
+                              cnt, line_err_x10, 0, cnt, line_err_x10, 0U, 0,
                               false, now_ms, estop, out_modes, out_targets);
 }
 
@@ -888,7 +973,7 @@ void Drive_LineFollowDualBarStep(Drive_LineFollowState_t *st,
   int16_t lead_err = (base_rpm_x10 >= 0) ? front_err_x10 : r_aligned;
 
   drive_line_follow_dual_core(st, gains, cal_done, base_rpm_x10, lead_mask,
-                              lead_count, lead_err, fc, front_err_x10, rc,
+                              lead_count, lead_err, 0, fc, front_err_x10, rc,
                               r_aligned, true, now_ms, estop, out_modes,
                               out_targets);
 }

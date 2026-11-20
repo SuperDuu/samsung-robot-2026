@@ -825,17 +825,22 @@ static void test_cd4067_and_flash_cal(void) {
   assert(cd4067_data.line_on_high == 1U);
   assert(CD4067_IsCalibrated());
 
-  /* Sub-sensor centroid accuracy: weight between sensor 3 (-100) and sensor 4
-   * (+100) */
+  /* Front sub-sensor centroid between channels 11 (-100) and 12 (+100),
+   * with a separate rear detection on channel 6 (+500). */
   uint16_t probe[16];
   memcpy(probe, floor_vals, sizeof(probe));
-  probe[3] = (uint16_t)((floor_vals[3] + line_vals[3]) / 2U); /* norm 500 */
-  probe[4] = line_vals[4];                                    /* norm 1000 */
+  probe[6] = line_vals[6];
+  probe[11] = (uint16_t)((floor_vals[11] + line_vals[11]) / 2U); /* norm 500 */
+  probe[12] = line_vals[12];                                    /* norm 1000 */
   sim_adc_sweep(&hadc1, &htim7, probe);
-  /* eff_norm[3] = 350 @ -100, eff_norm[4] = 850 @ +100 -> (-35000 + 85000)/1200
+  /* eff_norm[11] = 350 @ -100, eff_norm[12] = 850 @ +100 -> (-35000 + 85000)/1200
    * = +41 */
   int16_t c = CD4067_GetFrontCentroidX10();
   assert(c >= 38 && c <= 44);
+  assert(CD4067_GetRearCentroidX10() == 500);
+  assert(CD4067_GetFrontMask() == 0x18U);
+  assert(CD4067_GetRearMask() == 0x40U);
+  assert(CD4067_GetActiveMask() == 0x1840U);
 
   /* Save to Flash Sector 11 -> reload -> falsify via 1-bit flip */
   FlashCal_Record_t rec;
@@ -873,8 +878,9 @@ static void test_cd4067_and_flash_cal(void) {
   probe[3] = 800U;
   probe[4] = 800U;
   sim_adc_sweep(&hadc1, &htim7, probe);
-  assert(cd4067_data.front_mask == 0x18U);
-  assert(abs(CD4067_GetFrontCentroidX10()) <= 5);
+  assert(CD4067_GetFrontMask() == 0U);
+  assert(CD4067_GetRearMask() == 0x18U);
+  assert(abs(CD4067_GetRearCentroidX10()) <= 5);
   printf("      PASS.\n");
 }
 

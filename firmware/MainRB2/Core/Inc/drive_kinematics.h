@@ -150,8 +150,26 @@ typedef struct
   /* Optional Dual-Bar (Front + Rear 2x8) yaw alignment & wide-marker guard (0 = safe default) */
   int16_t  yaw_kp_rpmx10_per_err; /* >0 activates (e_front - e_rear) yaw control; <=0 = single-bar only */
   uint8_t  narrow_line_max_cnt;   /* Max sensors for clean narrow centroid (0 -> DRIVE_LINE_NARROW_MAX_CNT) */
-  int8_t   rear_polarity_sign;    /* +1 or 0 = Rear I8..I15 shares Front L->R sign; -1 = Rear PCB 180-deg rotated */
+  int8_t   rear_polarity_sign;    /* +1 or 0 = rear shares front L->R sign; -1 = rear PCB rotated 180 deg */
 } Drive_LineGains_t;
+
+typedef struct {
+  float yaw_target_deg;
+  float previous_yaw_deg;
+  float yaw_rate_dps;
+  float speed_gap_x10;
+  uint32_t previous_yaw_ms;
+  int8_t direction;
+  bool heading_locked;
+} Drive_StraightState_t;
+
+typedef struct {
+  int16_t rpm_x10[DRIVE_DIFF_WHEEL_COUNT];
+  float yaw_deg;
+  uint32_t yaw_ms;
+  bool wheels_ok;
+  bool imu_ok;
+} Drive_StraightFeedback_t;
 
 float Drive_SlewRamp(float current, float target, float accel_step, float decel_step);
 float Drive_WrapAngleDeg(float deg);
@@ -187,7 +205,21 @@ void Drive_DiffCompute(int16_t linear_rpm_x10,
                        uint8_t out_modes[DRIVE_DIFF_WHEEL_COUNT],
                        int16_t out_targets[DRIVE_DIFF_WHEEL_COUNT]);
 
+void Drive_StraightStep(Drive_StraightState_t *state, int16_t linear_rpm_x10,
+                        int16_t max_abs_rpm_x10, bool estop,
+                        const Drive_StraightFeedback_t *feedback,
+                        uint8_t out_modes[DRIVE_DIFF_WHEEL_COUNT],
+                        int16_t out_targets[DRIVE_DIFF_WHEEL_COUNT]);
+
 void Drive_LineFollowReset(Drive_LineFollowState_t *st);
+
+void Drive_LineFollowFrontStep(Drive_LineFollowState_t *st,
+                               const Drive_LineGains_t *gains, bool cal_done,
+                               int16_t base_rpm_x10, uint8_t front_mask,
+                               int16_t front_centroid_x10, uint32_t now_ms,
+                               bool estop,
+                               uint8_t out_modes[DRIVE_DIFF_WHEEL_COUNT],
+                               int16_t out_targets[DRIVE_DIFF_WHEEL_COUNT]);
 
 void Drive_LineFollowStep(Drive_LineFollowState_t *st,
                           const Drive_LineGains_t *gains,

@@ -39,6 +39,12 @@ extern "C" {
 /* USER CODE BEGIN ET */
 typedef struct
 {
+  uint16_t adc_raw;            /* Raw 12-bit ADC value (0..4095) */
+  uint8_t active;              /* 1 = seeing line */
+} LineEye_Debug_t;
+
+typedef struct
+{
   /* 1. TDK (HC-12 Remote Control) */
   struct {
     uint8_t  connected;        /* 1 = live link, 0 = lost */
@@ -78,6 +84,8 @@ typedef struct
     uint16_t active_mask;      /* Bitmask of channels seeing line */
     uint8_t  active_count;     /* Number of active sensors */
     int16_t  line_error;       /* Centroid position / error */
+    LineEye_Debug_t front[8];   /* IN9..IN16, right to left */
+    LineEye_Debug_t rear[8];    /* IN1..IN8 */
   } line;
 
   /* 5. Board Inputs / States */
@@ -143,6 +151,8 @@ void MainRB2_ClearWheelFaults(void);
 #define SW1_GPIO_Port GPIOB
 #define LS4_Pin GPIO_PIN_13
 #define LS4_GPIO_Port GPIOB
+#define BAUMER_INPUT_Pin GPIO_PIN_14
+#define BAUMER_INPUT_GPIO_Port GPIOB
 #define LS3_Pin GPIO_PIN_6
 #define LS3_GPIO_Port GPIOC
 #define LS2_Pin GPIO_PIN_7

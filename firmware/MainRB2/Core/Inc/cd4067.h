@@ -8,7 +8,7 @@
   *   - CD4067_MODE_LINE_11      : 11-sensor line array (I0..I10 -> L1..L11).
   *   - CD4067_MODE_LIMIT_SWITCH : 16-channel limit switch scanner (I0..I15) with Schmitt
   *                                hysteresis + multi-sweep debounce (skips boot offset tare).
-  *   - CD4067_MODE_LINE_2X8     : Dual-end 2x8 line sensor array (Front I0..I7, Rear I8..I15)
+  *   - CD4067_MODE_LINE_2X8     : Dual-end 2x8 line sensor array (Front I8..I15, Rear I0..I7)
   *                                with 2-point White/Black normalization (0..1000), continuous
   *                                centroid [-700..+700], Load Port marker detect, & 11-LED views.
   ******************************************************************************
@@ -33,6 +33,8 @@ extern "C" {
 #define CD4067_NUM_CHANNELS          16U
 #define CD4067_NUM_LINE_SENSORS      11U
 #define CD4067_NUM_ROW_SENSORS       8U
+#define CD4067_FRONT_FIRST_CH        8U   /* Front right-to-left: IN9..IN16 */
+#define CD4067_REAR_FIRST_CH         0U   /* LINE_2X8 rear bank: IN1..IN8 */
 #define CD4067_DEFAULT_THRESHOLD     700U
 #define CD4067_CALIB_WARMUP_SWEEPS   100U
 #define CD4067_CALIB_AVG_SWEEPS      256U
@@ -48,7 +50,7 @@ extern "C" {
 #define CD4067_LIMIT_HIGH_MIN        2600U /* >= 2.10 V -> logic HIGH */
 #define CD4067_LIMIT_DEBOUNCE_SWEEPS 5U    /* 5 * 1.6 ms = 8.0 ms debounce */
 
-/* Default alternating dwell period (ms) between Front (I0..I7) and Rear (I8..I15) on L1..L8 */
+/* Default alternating dwell period (ms) between Front (I8..I15) and Rear (I0..I7) on L1..L8 */
 #define CD4067_LED_ALT_PERIOD_MS     600U
 
 typedef enum
@@ -62,8 +64,8 @@ typedef enum
 {
   CD4067_LED_VIEW_LOW11      = 0U, /* L1..L11 = ch 0..10 (1:1 for LINE_11 / Limit lower 11) */
   CD4067_LED_VIEW_AUTO_ALT   = 1U, /* L1..L8 alt 600ms Front/Rear 1:1; L9=Front any, L10=Rear any, L11=Bank */
-  CD4067_LED_VIEW_FRONT_LOCK = 2U, /* L1..L8 = Front I0..I7 1:1; L9=Front any, L10=Rear any, L11=OFF */
-  CD4067_LED_VIEW_REAR_LOCK  = 3U, /* L1..L8 = Rear I8..I15 1:1; L9=Front any, L10=Rear any, L11=ON  */
+  CD4067_LED_VIEW_FRONT_LOCK = 2U, /* L1..L8 = Front I8..I15 1:1; L9=Front any, L10=Rear any, L11=OFF */
+  CD4067_LED_VIEW_REAR_LOCK  = 3U, /* L1..L8 = Rear I0..I7 1:1; L9=Front any, L10=Rear any, L11=ON */
   CD4067_LED_VIEW_DUAL_5_1_5 = 4U  /* L1..L5=Front(5), L6=Both active separator, L7..L11=Rear(5) */
 } CD4067_LedView_t;
 

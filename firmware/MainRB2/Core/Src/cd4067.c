@@ -17,7 +17,7 @@
  * available via raw[].
  *   - LIMIT_SWITCH mode: I0..I15 scanned as 16 limit switches with Schmitt
  * hysteresis + 8 ms debounce.
- *   - LINE_2X8 mode: Front row I0..I7, Rear row I8..I15, encoded onto 11
+ *   - LINE_2X8 mode: Front row I8..I15, Rear row I0..I7, encoded onto 11
  * adjacent LEDs L1..L11.
  *
  * Timing budget (@ APB1Tim = 84 MHz, APB2 = 84 MHz):
@@ -72,8 +72,7 @@ static const CD4067_LedPin_t cd4067_line_leds[CD4067_NUM_LINE_SENSORS] = {
 static const int16_t cd4067_line_weights_x10[CD4067_NUM_LINE_SENSORS] = {
     -1000, -800, -600, -400, -200, 0, 200, 400, 600, 800, 1000};
 
-/* Signed weights in tenths for 8-sensor Front (I0..I7) and Rear (I8..I15) rows
- * (-700..+700) */
+/* Left-to-right weights for either 8-sensor row (-700..+700). */
 static const int16_t cd4067_row_weights_x10[CD4067_NUM_ROW_SENSORS] = {
     -700, -500, -300, -100, 100, 300, 500, 700};
 
@@ -705,18 +704,20 @@ static void cd4067_commit_line2x8_sweep(void) {
   bool use_2pt = (cd4067_data.two_point_active != 0U);
 
   for (uint8_t i = 0U; i < CD4067_NUM_ROW_SENSORS; i++) {
-    if (cd4067_data.sensor_active[i] != 0U) {
-      f_bin_sum += cd4067_row_weights_x10[i];
+    uint8_t fi = (uint8_t)(CD4067_FRONT_FIRST_CH + i);
+    uint8_t ri = (uint8_t)(CD4067_REAR_FIRST_CH + i);
+    int16_t front_weight = cd4067_row_weights_x10[CD4067_NUM_ROW_SENSORS - 1U - i];
+    if (cd4067_data.sensor_active[fi] != 0U) {
+      f_bin_sum += front_weight;
       f_cnt++;
       f_mask |= (uint8_t)(1U << i);
     }
-    if (use_2pt && (cd4067_data.norm[i] > CD4067_NORM_NOISE_FLOOR)) {
-      uint32_t eff = (uint32_t)cd4067_data.norm[i] - CD4067_NORM_NOISE_FLOOR;
-      f_w_sum += (int32_t)eff * (int32_t)cd4067_row_weights_x10[i];
+    if (use_2pt && (cd4067_data.norm[fi] > CD4067_NORM_NOISE_FLOOR)) {
+      uint32_t eff = (uint32_t)cd4067_data.norm[fi] - CD4067_NORM_NOISE_FLOOR;
+      f_w_sum += (int32_t)eff * (int32_t)front_weight;
       f_w_den += eff;
     }
 
-    uint8_t ri = (uint8_t)(CD4067_NUM_ROW_SENSORS + i);
     if (cd4067_data.sensor_active[ri] != 0U) {
       r_bin_sum += cd4067_row_weights_x10[i];
       r_cnt++;
@@ -733,7 +734,8 @@ static void cd4067_commit_line2x8_sweep(void) {
   cd4067_data.rear_mask = r_mask;
   cd4067_data.front_count = f_cnt;
   cd4067_data.rear_count = r_cnt;
-  cd4067_data.active_mask = (uint16_t)f_mask | ((uint16_t)r_mask << 8U);
+  cd4067_data.active_mask = ((uint16_t)f_mask << CD4067_FRONT_FIRST_CH) |
+                            ((uint16_t)r_mask << CD4067_REAR_FIRST_CH);
   cd4067_data.active_count = (uint8_t)(f_cnt + r_cnt);
 
   if (use_2pt && (f_w_den > 0U) && (f_cnt > 0U)) {
