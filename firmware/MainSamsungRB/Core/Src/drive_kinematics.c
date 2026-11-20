@@ -437,11 +437,18 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
       imu_ok ? Drive_WrapAngleDeg(robot_yaw_deg + ctrl->heading_trim_deg) : 0.0f;
   if (trim_release && imu_ok) {
     /* Dynamic IMU drift compensation on button release:
-     * Preserve the active target_heading setpoint (e.g. 0 deg), and absorb the trimmed
+     * When adjusting within fine drift window (|trim_diff| <= 30 deg), absorb the trimmed
      * physical rotation directly into heading_trim_deg so cardinal pad snaps (0, 90, 180, -90)
-     * maintain the new corrected reference rather than snapping back to the old drifted angle. */
-    ctrl->heading_trim_deg =
+     * maintain the new corrected reference.
+     * When making large intentional turns (> 30 deg, e.g. turning 90 or 180 deg), update the
+     * active target_heading setpoint to held angle so field-centric coordinate frame is never inverted! */
+    float trim_diff =
         Drive_WrapAngleDeg(ctrl->target_heading_deg - robot_yaw_deg);
+    if (fabsf(trim_diff) <= 30.0f) {
+      ctrl->heading_trim_deg = trim_diff;
+    } else {
+      ctrl->target_heading_deg = yaw_meas_deg;
+    }
     ctrl->slew_heading_deg = ctrl->target_heading_deg;
     ctrl->rot_ramp_ticks = DRIVE_OMNI_HEADING_RAMP_TICKS;
     ctrl->heading_settled = false;
@@ -470,8 +477,13 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     target_w = l2 ? (-rot_dir * DRIVE_OMNI_TRIM_ROT_PCT)
                   : (+rot_dir * DRIVE_OMNI_TRIM_ROT_PCT);
     if (imu_ok) {
-      ctrl->heading_trim_deg =
+      float trim_diff =
           Drive_WrapAngleDeg(ctrl->target_heading_deg - robot_yaw_deg);
+      if (fabsf(trim_diff) <= 30.0f) {
+        ctrl->heading_trim_deg = trim_diff;
+      } else {
+        ctrl->target_heading_deg = yaw_meas_deg;
+      }
       ctrl->slew_heading_deg = ctrl->target_heading_deg;
     }
     ctrl->heading_settled = false;

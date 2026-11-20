@@ -15,6 +15,10 @@
 #include <math.h>
 #include <string.h>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 #ifdef FREERTOS_ENABLED
 #include "FreeRTOS.h"
 #include "task.h"
@@ -36,6 +40,33 @@ static float BNO055_WrapDeltaDeg(float delta)
     delta += 360.0f;
   }
   return delta;
+}
+
+static void BNO055_QuatToEuler(float qw, float qx, float qy, float qz,
+                               float *yaw_deg, float *pitch_deg,
+                               float *roll_deg)
+{
+  /* Yaw (Z-axis rotation): atan2(2*(w*z + x*y), 1 - 2*(y^2 + z^2)) */
+  float siny_cosp = 2.0f * (qw * qz + qx * qy);
+  float cosy_cosp = 1.0f - 2.0f * (qy * qy + qz * qz);
+  *yaw_deg = atan2f(siny_cosp, cosy_cosp) * (180.0f / (float)M_PI);
+
+  /* Pitch (Y-axis rotation): asin(2*(w*y - z*x)) */
+  float sinp = 2.0f * (qw * qy - qz * qx);
+  if (sinp > 1.0f)
+  {
+    sinp = 1.0f;
+  }
+  else if (sinp < -1.0f)
+  {
+    sinp = -1.0f;
+  }
+  *pitch_deg = asinf(sinp) * (180.0f / (float)M_PI);
+
+  /* Roll (X-axis rotation): atan2(2*(w*x + y*z), 1 - 2*(x^2 + y^2)) */
+  float sinr_cosp = 2.0f * (qw * qx + qy * qz);
+  float cosr_cosp = 1.0f - 2.0f * (qx * qx + qy * qy);
+  *roll_deg = atan2f(sinr_cosp, cosr_cosp) * (180.0f / (float)M_PI);
 }
 
 void bno055_invalidatePageCache(void);
@@ -391,23 +422,30 @@ bool BNO055_IMU_InitWithMode(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c, bno055_
   bno055_setOperationMode(imu->op_mode);
   bno055_delay(30);
 
-  bno055_vector_t eul = bno055_getVectorEuler();
+  bno055_vector_t quat = bno055_getVectorQuaternion();
   if (_bno055_last_status == HAL_OK)
   {
-    imu->euler = eul;
-    imu->yaw_raw = (float)eul.x;
+    float yr = 0.0f;
+    float pr = 0.0f;
+    float rr = 0.0f;
+    BNO055_QuatToEuler((float)quat.w, (float)quat.x, (float)quat.y, (float)quat.z,
+                       &yr, &pr, &rr);
+    imu->euler.x = (double)yr;
+    imu->euler.y = (double)rr;
+    imu->euler.z = (double)pr;
+    imu->yaw_raw = yr;
     imu->yaw_prev = imu->yaw_raw;
     imu->yaw_total = imu->yaw_raw;
     imu->yaw_offset = imu->yaw_total;
     imu->yaw = 0.0f;
 
-    imu->roll_raw = (float)eul.y;
+    imu->roll_raw = rr;
     imu->roll_prev = imu->roll_raw;
     imu->roll_total = imu->roll_raw;
     imu->roll_offset = imu->roll_total;
     imu->roll = 0.0f;
 
-    imu->pitch_raw = (float)eul.z;
+    imu->pitch_raw = pr;
     imu->pitch_prev = imu->pitch_raw;
     imu->pitch_total = imu->pitch_raw;
     imu->pitch_offset = imu->pitch_total;
@@ -586,7 +624,7 @@ bool BNO055_IMU_Update(BNO055_IMU_t *imu)
     }
   }
 
-  bno055_vector_t eul = bno055_getVectorEuler();
+  bno055_vector_t quat = bno055_getVectorQuaternion();
   if (_bno055_last_status != HAL_OK)
   {
     imu->err_count++;
@@ -602,15 +640,13 @@ bool BNO055_IMU_Update(BNO055_IMU_t *imu)
     return false;
   }
 
-  /* Check CALIB_STAT..OPR_MODE (0x35..0x3D) at 5 Hz or immediately on suspicious {0,0,0} snap */
-  bool eul_zero_snap = !imu->resync_yaw_prev &&
-                       (eul.x == 0.0) && (eul.y == 0.0) && (eul.z == 0.0) &&
-                       ((BNO055_Absf(imu->yaw_prev) > 0.25f) ||
-                        (BNO055_Absf(imu->roll_prev) > 0.25f) ||
-                        (BNO055_Absf(imu->pitch_prev) > 0.25f));
+  /* Unit quaternions always have norm ~1.0; a {0,0,0,0} quat is an unequivocal
+   * signature of uninitialized data or silent brownout reset. */
+  bool quat_zero_snap = !imu->resync_yaw_prev &&
+                        (quat.w == 0.0) && (quat.x == 0.0) && (quat.y == 0.0) && (quat.z == 0.0);
 
   imu->calib_div++;
-  if (eul_zero_snap || (imu->calib_div >= BNO055_CALIB_POLL_DIV))
+  if (quat_zero_snap || (imu->calib_div >= BNO055_CALIB_POLL_DIV))
   {
     bool mode_was_reset = false;
     imu->calib_div = 0U;
@@ -633,11 +669,15 @@ bool BNO055_IMU_Update(BNO055_IMU_t *imu)
   imu->consec_errs = 0U;
   imu->healthy = true;
   imu->last_ok_ms = now_ms;
-  imu->euler = eul;
 
-  float yr = (float)eul.x;
-  float rr = (float)eul.y;
-  float pr = (float)eul.z;
+  float yr = 0.0f;
+  float pr = 0.0f;
+  float rr = 0.0f;
+  BNO055_QuatToEuler((float)quat.w, (float)quat.x, (float)quat.y, (float)quat.z,
+                     &yr, &pr, &rr);
+  imu->euler.x = (double)yr;
+  imu->euler.y = (double)rr;
+  imu->euler.z = (double)pr;
   imu->yaw_raw = yr;
   imu->roll_raw = rr;
   imu->pitch_raw = pr;

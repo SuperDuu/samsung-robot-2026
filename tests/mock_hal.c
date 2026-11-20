@@ -7,6 +7,7 @@
   */
 
 #include "mock_hal.h"
+#include <math.h>
 #include <string.h>
 
 GPIO_TypeDef  g_mock_gpioa;
@@ -556,6 +557,35 @@ static void bno_encode_i16_le(uint8_t *dst, float deg)
   dst[1] = (uint8_t)(((uint16_t)v >> 8U) & 0xFFU);
 }
 
+static void bno_encode_quat_le(uint8_t *page0, float yaw_deg, float pitch_deg, float roll_deg)
+{
+  float cy = cosf(yaw_deg * 0.5f * (3.141592653589793f / 180.0f));
+  float sy = sinf(yaw_deg * 0.5f * (3.141592653589793f / 180.0f));
+  float cp = cosf(pitch_deg * 0.5f * (3.141592653589793f / 180.0f));
+  float sp = sinf(pitch_deg * 0.5f * (3.141592653589793f / 180.0f));
+  float cr = cosf(roll_deg * 0.5f * (3.141592653589793f / 180.0f));
+  float sr = sinf(roll_deg * 0.5f * (3.141592653589793f / 180.0f));
+
+  float qw = cr * cp * cy + sr * sp * sy;
+  float qx = sr * cp * cy - cr * sp * sy;
+  float qy = cr * sp * cy + sr * cp * sy;
+  float qz = cr * cp * sy - sr * sp * cy;
+
+  int16_t w_lsb = (int16_t)(qw * 16384.0f);
+  int16_t x_lsb = (int16_t)(qx * 16384.0f);
+  int16_t y_lsb = (int16_t)(qy * 16384.0f);
+  int16_t z_lsb = (int16_t)(qz * 16384.0f);
+
+  page0[0x20] = (uint8_t)((uint16_t)w_lsb & 0xFFU);
+  page0[0x21] = (uint8_t)(((uint16_t)w_lsb >> 8U) & 0xFFU);
+  page0[0x22] = (uint8_t)((uint16_t)x_lsb & 0xFFU);
+  page0[0x23] = (uint8_t)(((uint16_t)x_lsb >> 8U) & 0xFFU);
+  page0[0x24] = (uint8_t)((uint16_t)y_lsb & 0xFFU);
+  page0[0x25] = (uint8_t)(((uint16_t)y_lsb >> 8U) & 0xFFU);
+  page0[0x26] = (uint8_t)((uint16_t)z_lsb & 0xFFU);
+  page0[0x27] = (uint8_t)(((uint16_t)z_lsb >> 8U) & 0xFFU);
+}
+
 HAL_StatusTypeDef HAL_I2C_Mem_Write(I2C_HandleTypeDef *hi2c, uint16_t DevAddress, uint16_t MemAddress,
                                     uint16_t MemAddSize, uint8_t *pData, uint16_t Size, uint32_t Timeout)
 {
@@ -674,6 +704,10 @@ HAL_StatusTypeDef HAL_I2C_Mem_Read(I2C_HandleTypeDef *hi2c, uint16_t DevAddress,
     bno_encode_i16_le(&page0[0x1A], g_mock_bno.yaw_deg);
     bno_encode_i16_le(&page0[0x1C], g_mock_bno.roll_deg);
     bno_encode_i16_le(&page0[0x1E], g_mock_bno.pitch_deg);
+    if (g_mock_bno.opr_mode != 0x00U)
+    {
+      bno_encode_quat_le(page0, g_mock_bno.yaw_deg, g_mock_bno.pitch_deg, g_mock_bno.roll_deg);
+    }
     page0[0x35] = g_mock_bno.calib_stat;
     page0[0x3D] = g_mock_bno.opr_mode;
 

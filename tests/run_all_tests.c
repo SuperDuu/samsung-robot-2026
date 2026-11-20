@@ -360,6 +360,17 @@ static void test_bno055_hardening_and_backoff(void) {
     MockHal_AdvanceTick(10U);
     assert(BNO055_IMU_Update(&bo_imu));
     assert(fabsf(bo_imu.yaw - 105.0f) < 0.1f);
+
+    /* Sub-check (a3): 180-deg turn and 2-second stationary hold must NOT flip or jump yaw */
+    g_mock_bno.yaw_deg = 180.0f;
+    MockHal_AdvanceTick(10U);
+    assert(BNO055_IMU_Update(&bo_imu));
+    float yaw_at_180 = bo_imu.yaw;
+    for (int k = 0; k < 200; k++) {
+      MockHal_AdvanceTick(10U);
+      assert(BNO055_IMU_Update(&bo_imu));
+    }
+    assert(fabsf(bo_imu.yaw - yaw_at_180) < 0.25f);
   }
 
   /* (b) Synthetic ZRO drifts (+0.25, -0.31, +0.19 deg/s) learned during 1.5s
@@ -516,6 +527,18 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
   assert(fabsf(fabsf(ctrl.omega_fb_pct) - DRIVE_OMNI_TRIM_ROT_PCT) < 0.01f);
   assert(abs(targets[0]) == 200); /* 20.0 RPM per wheel */
   in.ps2_btn[1] = 0U;
+
+  /* Large turn test: Rotating 180 deg with L2 must update target_heading to 180 deg and PRESERVE field-centric! */
+  ctrl.heading_trim_deg = 0.0f;
+  ctrl.target_heading_deg = 0.0f;
+  in.ps2_btn[1] = DRIVE_PS2_B1_L2;
+  for (int step = 0; step < 50; step++) {
+    Drive_OmniCtrlStep(&ctrl, &in, false, 180.0f, true, 4000, modes, targets);
+  }
+  in.ps2_btn[1] = 0U; /* Release */
+  Drive_OmniCtrlStep(&ctrl, &in, false, 180.0f, true, 4000, modes, targets);
+  assert(fabsf(ctrl.target_heading_deg - 180.0f) < 0.1f);
+  assert(fabsf(ctrl.slew_heading_deg - 180.0f) < 0.1f);
 
   /* Falsification: Heading loop gain MUST be invariant across all speed gears!
    * Same 10 deg error must yield identical wheel RPM at Gear 0 (40%) and Gear 3 (100%). */
