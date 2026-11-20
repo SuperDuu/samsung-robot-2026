@@ -219,11 +219,13 @@ void Drive_OmniComputeFromPs2(Drive_OmniState_t *state,
   bool l2 = (in->ps2_btn[1] & DRIVE_PS2_B1_L2) != 0U;
   bool r2 = (in->ps2_btn[1] & DRIVE_PS2_B1_R2) != 0U;
   /* Note: R1 is dedicated to gripper clamp toggle (180 deg servo), NOT robot rotation */
+  float trim_speed =
+      boost_3x ? DRIVE_OMNI_BOOST_ROT_PCT : DRIVE_OMNI_TRIM_ROT_PCT;
   float target_w = 0.0f;
   if (l2 && !r2) {
-    target_w = +DRIVE_OMNI_TRIM_ROT_PCT; /* 20 RPM rotate left */
+    target_w = +trim_speed;
   } else if (r2 && !l2) {
-    target_w = -DRIVE_OMNI_TRIM_ROT_PCT; /* 20 RPM rotate right */
+    target_w = -trim_speed;
   }
 
   state->vx_pct = Drive_SlewRamp(state->vx_pct, target_x, DRIVE_OMNI_SLEW_ACCEL,
@@ -247,8 +249,14 @@ void Drive_OmniComputeFromPs2(Drive_OmniState_t *state,
   if (boost_3x) {
     v_scale = fminf(v_scale * 3.0f, (float)max_abs_rpm_x10);
   }
+  float w_scale = (boost_3x && (l2 != r2))
+                      ? DRIVE_OMNI_BOOST_OMEGA_SCALE_RPMX10
+                      : DRIVE_OMNI_OMEGA_SCALE_RPMX10;
+  if (w_scale > (float)max_abs_rpm_x10) {
+    w_scale = (float)max_abs_rpm_x10;
+  }
   drive_mix_omni_wheels(state->vx_pct, state->vy_pct, state->omega_pct,
-                        theta_rad, v_scale, DRIVE_OMNI_OMEGA_SCALE_RPMX10,
+                        theta_rad, v_scale, w_scale,
                         max_abs_rpm_x10, out_modes, out_targets);
 }
 
@@ -473,9 +481,11 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
 
   float rot_dir = ctrl->rot_btn_invert ? -1.0f : 1.0f;
   if (trim_rot) {
-    /* Fine yaw trim: L2 rotates LEFT (-rot_dir * 10%), R2 rotates RIGHT (+rot_dir * 10%) at ~20 RPM */
-    target_w = l2 ? (-rot_dir * DRIVE_OMNI_TRIM_ROT_PCT)
-                  : (+rot_dir * DRIVE_OMNI_TRIM_ROT_PCT);
+    /* Fine yaw trim: L2 rotates LEFT, R2 rotates RIGHT. When L1 boost held, rotates 3.75x faster! */
+    float trim_speed =
+        boost_3x ? DRIVE_OMNI_BOOST_ROT_PCT : DRIVE_OMNI_TRIM_ROT_PCT;
+    target_w = l2 ? (-rot_dir * trim_speed)
+                  : (+rot_dir * trim_speed);
     if (imu_ok) {
       float trim_diff =
           Drive_WrapAngleDeg(ctrl->target_heading_deg - robot_yaw_deg);
@@ -509,10 +519,13 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
 
     /* Wrapped exponential setpoint slew (fixes RBC2026_MAINBOARD_R1 wrap/unwind
      * bug) */
+    float slew_alpha = (boost_3x && (ctrl->rot_ramp_ticks > 0U))
+                           ? DRIVE_OMNI_BOOST_HEADING_SLEW
+                           : DRIVE_OMNI_HEADING_SLEW;
     float slew_delta =
         Drive_WrapAngleDeg(ctrl->target_heading_deg - ctrl->slew_heading_deg);
     ctrl->slew_heading_deg = Drive_WrapAngleDeg(
-        ctrl->slew_heading_deg + DRIVE_OMNI_HEADING_SLEW * slew_delta);
+        ctrl->slew_heading_deg + slew_alpha * slew_delta);
 
     float db_enter = (ctrl->heading_deadband_deg > 0.0f)
                          ? ctrl->heading_deadband_deg
@@ -540,8 +553,10 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
         err_deg = 0.0f;
       }
       ctrl->rot_ramp_ticks--;
+      float ramp_accel = boost_3x ? DRIVE_OMNI_BOOST_RAMP_ACCEL
+                                  : DRIVE_OMNI_HEADING_RAMP_ACCEL;
       ctrl->ramp_omega_deg = Drive_SlewRamp(ctrl->ramp_omega_deg, err_deg,
-                                            DRIVE_OMNI_HEADING_RAMP_ACCEL,
+                                            ramp_accel,
                                             DRIVE_OMNI_HEADING_RAMP_DECEL);
     } else {
       if (ctrl->heading_settled) {
@@ -573,14 +588,17 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     }
 
     float max_omega = ((l1 != r1) || (ctrl->rot_ramp_ticks > 0U))
-                          ? DRIVE_OMNI_OMEGA_MAX
+                          ? (boost_3x ? DRIVE_OMNI_BOOST_OMEGA_MAX
+                                      : DRIVE_OMNI_OMEGA_MAX)
                           : DRIVE_OMNI_HEADING_HOLD_OMEGA_MAX;
     target_w = drive_clampf(sign * pd_w, -max_omega, max_omega);
     ctrl->omega_fb_pct = target_w;
   } else {
     if (trim_rot) {
-      target_w = l2 ? (-rot_dir * DRIVE_OMNI_TRIM_ROT_PCT)
-                    : (+rot_dir * DRIVE_OMNI_TRIM_ROT_PCT);
+      float trim_speed =
+          boost_3x ? DRIVE_OMNI_BOOST_ROT_PCT : DRIVE_OMNI_TRIM_ROT_PCT;
+      target_w = l2 ? (-rot_dir * trim_speed)
+                    : (+rot_dir * trim_speed);
     } else if (!select_held && l1 && !r1) {
       target_w = -rot_dir * DRIVE_OMNI_OMEGA_MAX;
     } else if (!select_held && r1 && !l1) {
@@ -643,9 +661,15 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
   if (boost_3x) {
     v_scale = fminf(v_scale * 3.0f, (float)max_abs_rpm_x10);
   }
+  float w_scale = (boost_3x && (trim_rot || (ctrl->rot_ramp_ticks > 0U)))
+                      ? DRIVE_OMNI_BOOST_OMEGA_SCALE_RPMX10
+                      : DRIVE_OMNI_OMEGA_SCALE_RPMX10;
+  if (w_scale > (float)max_abs_rpm_x10) {
+    w_scale = (float)max_abs_rpm_x10;
+  }
   drive_mix_omni_wheels(ctrl->slew.vx_pct, ctrl->slew.vy_pct,
                         ctrl->slew.omega_pct, theta_rad, v_scale,
-                        DRIVE_OMNI_OMEGA_SCALE_RPMX10, max_abs_rpm_x10,
+                        w_scale, max_abs_rpm_x10,
                         out_modes, out_targets);
 }
 
