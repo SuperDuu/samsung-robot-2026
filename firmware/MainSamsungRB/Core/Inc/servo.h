@@ -28,7 +28,7 @@ extern "C" {
 #define SERVO_PWM_MAX_US               2500U
 #define SERVO_180_MAX_DEG              180.0f
 #define SERVO_270_MAX_DEG              270.0f
-#define SERVO_CLAMP_DEFAULT_OPEN_DEG   15.0f
+#define SERVO_CLAMP_DEFAULT_OPEN_DEG   40.0f
 #define SERVO_CLAMP_DEFAULT_CLOSE_DEG  0.0f
 #define SERVO_360_DEFAULT_HALF_SPAN_US 500U   /* 1000..2000 us continuous range (pass 1000 for 500..2500 us) */
 #define SERVO_DEFAULT_DEADBAND_PCT     2.0f
@@ -36,7 +36,7 @@ extern "C" {
 /* Logical actuator channel mapping on Robot R1:
  *  - SERVO_360_CH1:  SERVO_CH_4 (PB15 - TIM12_CH2, J36) - Continuous 360 #1 (Right Stick UP/DOWN)
  *  - SERVO_360_CH2:  SERVO_CH_5 (PB8  - TIM4_CH3,  J37) - Continuous 360 #2 (Right Stick LEFT/RIGHT)
- *  - SERVO_CLAMP_CH: SERVO_CH_6 (PB9  - TIM4_CH4,  J38) - Positional 180 Clamp (R1 toggle 15 deg <-> 0 deg)
+ *  - SERVO_CLAMP_CH: SERVO_CH_6 (PB9  - TIM4_CH4,  J38) - Positional 180 Clamp (R1 toggle: initial 0 deg <-> open 40 deg)
  */
 #define SERVO_360_CH1                  SERVO_CH_4
 #define SERVO_360_CH2                  SERVO_CH_5

@@ -95,8 +95,8 @@ typedef struct
 
   /* 7. Gripper Clamp (180 deg servo on SERVO_CLAMP_CH / TIM4_CH4 / PB9 / J38) */
   struct {
-    uint8_t  closed;           /* 0 = Open (15 deg), 1 = Closed (0 deg) */
-    float    angle_deg;        /* Commanded angle: 15.0f or 0.0f */
+    uint8_t  closed;           /* 0 = Open (40 deg), 1 = Closed (0 deg) */
+    float    angle_deg;        /* Commanded angle: 40.0f or 0.0f */
     uint16_t pulse_us;         /* Output pulse in microseconds */
   } clamp;
 

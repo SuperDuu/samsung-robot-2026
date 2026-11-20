@@ -153,7 +153,7 @@ static float g_yaw_offset_deg = 0.0f;
 static uint8_t g_prev_select_btn = 0U;
 static uint8_t g_prev_l3_btn = 0U;
 static uint8_t g_prev_r1_btn = 0U;
-static bool g_clamp_closed = false;
+static bool g_clamp_opened = false;
 static bool g_estop_latched = false;
 static bool g_clear_faults_pending = false;
 static uint32_t g_last_imu_tick_ms = 0U;
@@ -356,12 +356,12 @@ int main(void) {
                         SERVO_360_DEFAULT_HALF_SPAN_US,
                         SERVO_DEFAULT_DEADBAND_PCT, false);
 
-  /* Initial clamp state: normal 15 deg (open) */
-  (void)Servo_SetAngle180(SERVO_CLAMP_CH, SERVO_CLAMP_DEFAULT_OPEN_DEG);
-  (void)Servo_SetAngle180(SERVO_CH_1, SERVO_CLAMP_DEFAULT_OPEN_DEG);
-  (void)Servo_SetAngle180(SERVO_CH_2, SERVO_CLAMP_DEFAULT_OPEN_DEG);
-  g_debug.clamp.closed = 0U;
-  g_debug.clamp.angle_deg = SERVO_CLAMP_DEFAULT_OPEN_DEG;
+  /* Initial clamp state: 0 deg (closed per user spec) */
+  (void)Servo_SetAngle180(SERVO_CLAMP_CH, SERVO_CLAMP_DEFAULT_CLOSE_DEG);
+  (void)Servo_SetAngle180(SERVO_CH_1, SERVO_CLAMP_DEFAULT_CLOSE_DEG);
+  (void)Servo_SetAngle180(SERVO_CH_2, SERVO_CLAMP_DEFAULT_CLOSE_DEG);
+  g_debug.clamp.closed = 1U;
+  g_debug.clamp.angle_deg = SERVO_CLAMP_DEFAULT_CLOSE_DEG;
   Servo_ChannelState_t clamp_init_st;
   if (Servo_GetState(SERVO_CLAMP_CH, &clamp_init_st)) {
     g_debug.clamp.pulse_us = clamp_init_st.current_us;
@@ -504,14 +504,14 @@ int main(void) {
         MainSamsungRB_ClearWheelFaults();
       }
       if ((r1_now != 0U) && (g_prev_r1_btn == 0U)) {
-        /* R1 toggle: 1st press closes clamp (0 deg), 2nd press reopens (15 deg) */
-        g_clamp_closed = !g_clamp_closed;
-        float clamp_angle = g_clamp_closed ? SERVO_CLAMP_DEFAULT_CLOSE_DEG
-                                           : SERVO_CLAMP_DEFAULT_OPEN_DEG;
+        /* R1 toggle: initial 0 deg (closed), 1st press opens to 40 deg, 2nd press closes to 0 deg */
+        g_clamp_opened = !g_clamp_opened;
+        float clamp_angle = g_clamp_opened ? SERVO_CLAMP_DEFAULT_OPEN_DEG
+                                           : SERVO_CLAMP_DEFAULT_CLOSE_DEG;
         (void)Servo_SetAngle180(SERVO_CLAMP_CH, clamp_angle);
         (void)Servo_SetAngle180(SERVO_CH_1, clamp_angle);
         (void)Servo_SetAngle180(SERVO_CH_2, clamp_angle);
-        g_debug.clamp.closed = g_clamp_closed ? 1U : 0U;
+        g_debug.clamp.closed = g_clamp_opened ? 0U : 1U;
         g_debug.clamp.angle_deg = clamp_angle;
       }
       g_prev_l3_btn = l3_now;
@@ -725,12 +725,12 @@ int main(void) {
     }
 
     /* Synchronize Live Expressions clamp debug override & read-back */
-    static uint8_t s_prev_dbg_clamp_closed = 0U;
+    static uint8_t s_prev_dbg_clamp_closed = 1U;
     if (g_debug.clamp.closed != s_prev_dbg_clamp_closed) {
-      g_clamp_closed = (g_debug.clamp.closed != 0U);
+      g_clamp_opened = (g_debug.clamp.closed == 0U);
       s_prev_dbg_clamp_closed = g_debug.clamp.closed;
-      float clamp_angle = g_clamp_closed ? SERVO_CLAMP_DEFAULT_CLOSE_DEG
-                                         : SERVO_CLAMP_DEFAULT_OPEN_DEG;
+      float clamp_angle = g_clamp_opened ? SERVO_CLAMP_DEFAULT_OPEN_DEG
+                                         : SERVO_CLAMP_DEFAULT_CLOSE_DEG;
       (void)Servo_SetAngle180(SERVO_CLAMP_CH, clamp_angle);
       (void)Servo_SetAngle180(SERVO_CH_1, clamp_angle);
       (void)Servo_SetAngle180(SERVO_CH_2, clamp_angle);
