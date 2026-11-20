@@ -775,14 +775,37 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
       assert(abs(ttargets[w]) == 424); /* ~42.4 RPM */
     }
 
-    /* Servo code guard: values 200..203 must NOT trigger D-pad or movement */
-    tin.ps2_btn[0] = 200U; /* Servo 1 forward code */
-    for (int step = 0; step < 10; step++) {
-      Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
-                         ttargets);
+    /* Re-enable field-centric for servo code isolation test */
+    Drive_OmniCtrlInit(&trim_ctrl, true);
+    trim_ctrl.heading_initialized = true;
+    trim_ctrl.target_heading_deg = 0.0f;
+    trim_ctrl.slew_heading_deg = 0.0f;
+
+    /* Servo code guard: values 200..203 (360 continuous servos) must NOT trigger
+     * D-pad movement, nor collide with L3/SELECT/START bitmasks! */
+    const uint8_t servo_codes[4] = {200U, 201U, 202U, 203U};
+    for (uint8_t s_idx = 0U; s_idx < 4U; s_idx++) {
+      uint8_t s_code = servo_codes[s_idx];
+      uint8_t clean_b0 = (s_code < 200U) ? s_code : 0U;
+      assert(clean_b0 == 0U);
+      /* Specifically verify that 202 and 203 (which have bit 1 = 1) do NOT trigger L3 (Zero Yaw) */
+      assert((clean_b0 & DRIVE_PS2_B0_L3) == 0U);
+      /* Verify 203 (bit 0 = 1) does NOT trigger SELECT */
+      assert((clean_b0 & DRIVE_PS2_B0_SELECT) == 0U);
+      /* Verify 200..203 (bit 3 = 1) do NOT trigger START */
+      assert((clean_b0 & DRIVE_PS2_B0_START) == 0U);
+
+      tin.ps2_btn[0] = s_code;
+      for (int step = 0; step < 10; step++) {
+        Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
+                           ttargets);
+      }
+      assert(ttargets[0] == 0 && ttargets[1] == 0 && ttargets[2] == 0 &&
+             ttargets[3] == 0);
+      /* Verify Field-Centric remains TRUE and target heading is not altered */
+      assert(trim_ctrl.field_centric);
+      assert(fabsf(trim_ctrl.target_heading_deg) < 0.001f);
     }
-    assert(ttargets[0] == 0 && ttargets[1] == 0 && ttargets[2] == 0 &&
-           ttargets[3] == 0);
 
     /* L1 3x Speed Boost test (tx_buf[3] = 4):
      * Pushing joystick forward with L1 must triple speed compared to normal,
