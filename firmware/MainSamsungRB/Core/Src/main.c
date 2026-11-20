@@ -438,6 +438,7 @@ int main(void) {
       if (RF_HC12_DecodeTdkCmd(&rx_frame, &g_tdk_cmd)) {
         forward_now = true; /* Reply inside post-tdk ~15 ms quiet slot before
                                tdk's next frame */
+        (void)forward_now;
       }
     }
 
@@ -487,10 +488,12 @@ int main(void) {
     /* PS2 L3 zeros field heading; Select clears PidBoard faults; ext_sw selects
      * Blue/Red field axis */
     if (ps2_valid) {
+      uint8_t raw_btn0 = g_tdk_cmd.ps2_btn[0];
+      uint8_t clean_btn0 = (raw_btn0 < 200U) ? raw_btn0 : 0U;
       uint8_t l3_now =
-          ((g_tdk_cmd.ps2_btn[0] & DRIVE_PS2_B0_L3) != 0U) ? 1U : 0U;
+          ((clean_btn0 & DRIVE_PS2_B0_L3) != 0U) ? 1U : 0U;
       uint8_t select_now =
-          ((g_tdk_cmd.ps2_btn[0] & DRIVE_PS2_B0_SELECT) != 0U) ? 1U : 0U;
+          ((clean_btn0 & DRIVE_PS2_B0_SELECT) != 0U) ? 1U : 0U;
       uint8_t r1_now =
           ((g_tdk_cmd.ps2_btn[1] & DRIVE_PS2_B1_R1) != 0U) ? 1U : 0U;
       Drive_OmniCtrlSetBlueSide(&g_omni_ctrl,
@@ -524,7 +527,7 @@ int main(void) {
        * recalibrate */
       static uint32_t s_sel_hold_start_ms = 0U;
       static bool s_sel_hold_fired = false;
-      bool sel_only = (g_tdk_cmd.ps2_btn[0] == DRIVE_PS2_B0_SELECT) &&
+      bool sel_only = (clean_btn0 == DRIVE_PS2_B0_SELECT) &&
                       (g_tdk_cmd.ps2_btn[1] == 0U);
       if (sel_only) {
         if (s_sel_hold_start_ms == 0U) {
@@ -541,7 +544,7 @@ int main(void) {
 
       static uint32_t s_start_hold_start_ms = 0U;
       static bool s_start_hold_fired = false;
-      bool start_only = (g_tdk_cmd.ps2_btn[0] == DRIVE_PS2_B0_START) &&
+      bool start_only = (clean_btn0 == DRIVE_PS2_B0_START) &&
                         (g_tdk_cmd.ps2_btn[1] == 0U);
       if (start_only) {
         if (s_start_hold_start_ms == 0U) {
@@ -894,8 +897,10 @@ int main(void) {
      * user presses START / Button on TDK */
     /* When no TDK data: robot stands still, HC-12 remains 100% silent in RX
      * listen mode (NO TX) */
+    uint8_t clean_btn0_auto =
+        (g_tdk_cmd.ps2_btn[0] < 200U) ? g_tdk_cmd.ps2_btn[0] : 0U;
     bool trigger_auto =
-        g_tdk_link_ok && (((g_tdk_cmd.ps2_btn[0] & DRIVE_PS2_B0_START) != 0U) ||
+        g_tdk_link_ok && (((clean_btn0_auto & DRIVE_PS2_B0_START) != 0U) ||
                           ((g_tdk_cmd.ext_sw & RF_TDK_EXT_BUTTON_BIT) != 0U));
 
     if (trigger_auto && ((uint32_t)(now_ms - g_last_auto_tx_ms) >= 100U)) {
