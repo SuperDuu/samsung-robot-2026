@@ -25,3 +25,5 @@ firmware/workspace_headless/
 # Local editor settings
 .vscode/
 
+*.STL 
+*.stl 
