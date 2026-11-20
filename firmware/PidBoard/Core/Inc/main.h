@@ -1,0 +1,97 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.h
+  * @brief          : Header for main.c file.
+  *                   This file contains the common defines of the application.
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+
+/* Define to prevent recursive inclusion -------------------------------------*/
+#ifndef __MAIN_H
+#define __MAIN_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Includes ------------------------------------------------------------------*/
+#include "stm32g0xx_hal.h"
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+
+/* USER CODE END Includes */
+
+/* Exported types ------------------------------------------------------------*/
+/* USER CODE BEGIN ET */
+typedef struct
+{
+  uint8_t  node_id;
+  int16_t  target_rpm_x10;
+  int16_t  actual_rpm_x10;
+  int16_t  duty_permille;
+  int32_t  enc_count;
+  uint8_t  watchdog_tripped;
+  uint8_t  last_rx_seq;
+  uint32_t last_rx_ms;
+} Pid_Debug_t;
+
+extern Pid_Debug_t g_pid_debug;
+/* USER CODE END ET */
+
+/* Exported constants --------------------------------------------------------*/
+/* USER CODE BEGIN EC */
+
+/* USER CODE END EC */
+
+/* Exported macro ------------------------------------------------------------*/
+/* USER CODE BEGIN EM */
+
+/* USER CODE END EM */
+
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+
+/* Exported functions prototypes ---------------------------------------------*/
+void Error_Handler(void);
+
+/* USER CODE BEGIN EFP */
+
+/* USER CODE END EFP */
+
+/* Private defines -----------------------------------------------------------*/
+#define S_Pin GPIO_PIN_7
+#define S_GPIO_Port GPIOB
+#define LED2_Pin GPIO_PIN_14
+#define LED2_GPIO_Port GPIOC
+#define LED1_Pin GPIO_PIN_15
+#define LED1_GPIO_Port GPIOC
+#define RE_DE_Pin GPIO_PIN_1
+#define RE_DE_GPIO_Port GPIOA
+#define S2_Pin GPIO_PIN_4
+#define S2_GPIO_Port GPIOA
+#define ENC_A_Pin GPIO_PIN_6
+#define ENC_A_GPIO_Port GPIOA
+#define ENC_B_Pin GPIO_PIN_7
+#define ENC_B_GPIO_Port GPIOA
+
+/* USER CODE BEGIN Private defines */
+
+/* USER CODE END Private defines */
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* __MAIN_H */

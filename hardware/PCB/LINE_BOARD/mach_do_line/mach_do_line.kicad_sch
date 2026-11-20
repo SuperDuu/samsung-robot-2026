@@ -301,12 +301,20 @@
 			)
 			(embedded_fonts no)
 		)
+<<<<<<< HEAD
 		(symbol "Device:LED_Small"
+=======
+		(symbol "Device:LED"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(pin_numbers
 				(hide yes)
 			)
 			(pin_names
+<<<<<<< HEAD
 				(offset 0.254)
+=======
+				(offset 1.016)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(hide yes)
 			)
 			(exclude_from_sim no)
@@ -315,29 +323,47 @@
 			(in_pos_files yes)
 			(duplicate_pin_numbers_are_jumpers no)
 			(property "Reference" "D"
+<<<<<<< HEAD
 				(at -1.27 3.175 0)
+=======
+				(at 0 2.54 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
 					(font
 						(size 1.27 1.27)
 					)
+<<<<<<< HEAD
 					(justify left)
 				)
 			)
 			(property "Value" "LED_Small"
 				(at -4.445 -2.54 0)
+=======
+				)
+			)
+			(property "Value" "LED"
+				(at 0 -2.54 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(show_name no)
 				(do_not_autoplace no)
 				(effects
 					(font
 						(size 1.27 1.27)
 					)
+<<<<<<< HEAD
 					(justify left)
 				)
 			)
 			(property "Footprint" ""
 				(at 0 0 90)
+=======
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(show_name no)
 				(do_not_autoplace no)
 				(hide yes)
@@ -348,7 +374,11 @@
 				)
 			)
 			(property "Datasheet" ""
+<<<<<<< HEAD
 				(at 0 0 90)
+=======
+				(at 0 0 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(show_name no)
 				(do_not_autoplace no)
 				(hide yes)
@@ -358,7 +388,11 @@
 					)
 				)
 			)
+<<<<<<< HEAD
 			(property "Description" "Light emitting diode, small symbol"
+=======
+			(property "Description" "Light emitting diode"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -380,7 +414,11 @@
 					)
 				)
 			)
+<<<<<<< HEAD
 			(property "ki_keywords" "LED diode light-emitting-diode"
+=======
+			(property "ki_keywords" "LED diode"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -402,10 +440,53 @@
 					)
 				)
 			)
+<<<<<<< HEAD
 			(symbol "LED_Small_0_1"
 				(polyline
 					(pts
 						(xy -0.762 -1.016) (xy -0.762 1.016)
+=======
+			(symbol "LED_0_1"
+				(polyline
+					(pts
+						(xy -3.048 -0.762) (xy -4.572 -2.286) (xy -3.81 -2.286) (xy -4.572 -2.286) (xy -4.572 -1.524)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.778 -0.762) (xy -3.302 -2.286) (xy -2.54 -2.286) (xy -3.302 -2.286) (xy -3.302 -1.524)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 0) (xy 1.27 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 -1.27) (xy -1.27 1.27)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 					)
 					(stroke
 						(width 0.254)
@@ -417,6 +498,7 @@
 				)
 				(polyline
 					(pts
+<<<<<<< HEAD
 						(xy 0 0.762) (xy -0.508 1.27) (xy -0.254 1.27) (xy -0.508 1.27) (xy -0.508 1.016)
 					)
 					(stroke
@@ -442,6 +524,9 @@
 				(polyline
 					(pts
 						(xy 0.762 -1.016) (xy -0.762 0) (xy 0.762 1.016) (xy 0.762 -1.016)
+=======
+						(xy 1.27 -1.27) (xy 1.27 1.27) (xy -1.27 0) (xy 1.27 -1.27)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 					)
 					(stroke
 						(width 0.254)
@@ -451,6 +536,7 @@
 						(type none)
 					)
 				)
+<<<<<<< HEAD
 				(polyline
 					(pts
 						(xy 1.016 0) (xy -0.762 0)
@@ -468,6 +554,13 @@
 				(pin passive line
 					(at -2.54 0 0)
 					(length 1.778)
+=======
+			)
+			(symbol "LED_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 2.54)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 					(name "K"
 						(effects
 							(font
@@ -484,8 +577,13 @@
 					)
 				)
 				(pin passive line
+<<<<<<< HEAD
 					(at 2.54 0 180)
 					(length 1.778)
+=======
+					(at 3.81 0 180)
+					(length 2.54)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 					(name "A"
 						(effects
 							(font
@@ -1234,6 +1332,7 @@
 		)
 	)
 	(junction
+<<<<<<< HEAD
 		(at 99.06 91.44)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -1244,11 +1343,24 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "04955523-3126-4788-8627-81be5295a1b9")
+=======
+		(at 110.49 74.93)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "2d160fa7-f2f3-455d-a3e6-70bbed97db2e")
+	)
+	(junction
+		(at 30.48 54.61)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "3538fc32-d936-4c77-b864-a90894c9c770")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	)
 	(junction
 		(at 55.88 74.93)
 		(diameter 0)
 		(color 0 0 0 0)
+<<<<<<< HEAD
 		(uuid "06fab04a-46db-4706-a453-3738781815ef")
 	)
 	(junction
@@ -1268,6 +1380,9 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "32c0cf4b-9eab-4b8f-82a7-96db11a23507")
+=======
+		(uuid "3ed07f3d-a7ac-4805-b7a6-84597c530ba9")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	)
 	(junction
 		(at 85.09 26.67)
@@ -1282,6 +1397,7 @@
 		(uuid "6c29976b-a5e6-419b-bee4-e2cf8bef355c")
 	)
 	(junction
+<<<<<<< HEAD
 		(at 138.43 91.44)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -1298,12 +1414,28 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "c83ea858-a5b3-40c8-ad11-fc8655626e74")
+=======
+		(at 55.88 81.28)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "9efe8d72-3430-4462-b165-c99c57905eee")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	)
 	(junction
 		(at 82.55 74.93)
 		(diameter 0)
 		(color 0 0 0 0)
+<<<<<<< HEAD
 		(uuid "e9c8b5ad-9836-442f-8dec-5d8837dc8434")
+=======
+		(uuid "ae1e43d8-5bfa-4e9c-9119-14a0c32061ec")
+	)
+	(junction
+		(at 40.64 54.61)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "d47d9877-76e7-4966-a7c0-08c143a74b78")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	)
 	(junction
 		(at 82.55 91.44)
@@ -1319,6 +1451,39 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
+=======
+			(xy 48.26 74.93) (xy 55.88 74.93)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0323ec96-e8be-446a-95ff-5620a0f48f82")
+	)
+	(wire
+		(pts
+			(xy 48.26 43.18) (xy 48.26 41.91)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "057deff7-1858-4749-b003-2425e27b5b9c")
+	)
+	(wire
+		(pts
+			(xy 40.64 54.61) (xy 30.48 54.61)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "09437c38-8267-4d28-b573-efe791d88c96")
+	)
+	(wire
+		(pts
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(xy 82.55 17.78) (xy 82.55 24.13)
 		)
 		(stroke
@@ -1339,6 +1504,19 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
+=======
+			(xy 55.88 81.28) (xy 55.88 91.44)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "106ddb5a-0e9f-4bd3-acea-122097b242bd")
+	)
+	(wire
+		(pts
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(xy 55.88 17.78) (xy 55.88 24.13)
 		)
 		(stroke
@@ -1349,7 +1527,11 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
 			(xy 82.55 91.44) (xy 99.06 91.44)
+=======
+			(xy 82.55 91.44) (xy 110.49 91.44)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		)
 		(stroke
 			(width 0)
@@ -1369,6 +1551,7 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
 			(xy 138.43 29.21) (xy 138.43 30.48)
 		)
 		(stroke
@@ -1399,6 +1582,8 @@
 	)
 	(wire
 		(pts
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(xy 85.09 24.13) (xy 85.09 26.67)
 		)
 		(stroke
@@ -1429,22 +1614,35 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
 			(xy 182.88 73.66) (xy 182.88 78.74)
+=======
+			(xy 20.32 48.26) (xy 20.32 54.61)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
+<<<<<<< HEAD
 		(uuid "2e9020f9-0a96-41be-9cd5-b31adbb23180")
 	)
 	(wire
 		(pts
 			(xy 138.43 17.78) (xy 138.43 24.13)
+=======
+		(uuid "2fe1846a-65c6-4b71-b636-d18955dfd57e")
+	)
+	(wire
+		(pts
+			(xy 30.48 43.18) (xy 30.48 41.91)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
+<<<<<<< HEAD
 		(uuid "310ff28a-d676-44b7-970e-56af67d8dc5f")
 	)
 	(wire
@@ -1456,6 +1654,9 @@
 			(type default)
 		)
 		(uuid "34e27078-a9e9-41a7-abbb-f0e625c6f99c")
+=======
+		(uuid "37ef5c7e-b4ce-4a4a-b4a8-768fbc2913b4")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	)
 	(wire
 		(pts
@@ -1469,12 +1670,17 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
 			(xy 170.18 17.78) (xy 170.18 19.05)
+=======
+			(xy 55.88 50.8) (xy 55.88 74.93)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
+<<<<<<< HEAD
 		(uuid "4398564b-b942-413f-a3cf-08673e10be35")
 	)
 	(wire
@@ -1526,6 +1732,9 @@
 			(type default)
 		)
 		(uuid "4c9c2c11-2767-45ab-8fa0-2b5e3e34f098")
+=======
+		(uuid "43e85907-9c5d-4de2-9155-ae09b08a7266")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	)
 	(wire
 		(pts
@@ -1559,13 +1768,21 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
 			(xy 140.97 26.67) (xy 140.97 30.48)
+=======
+			(xy 55.88 74.93) (xy 55.88 81.28)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
+<<<<<<< HEAD
 		(uuid "56429284-0438-492f-bb15-1d593ba03b01")
+=======
+		(uuid "65896384-5dc6-4e98-8f64-e3af0eb40779")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	)
 	(wire
 		(pts
@@ -1579,6 +1796,19 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
+=======
+			(xy 40.64 43.18) (xy 40.64 41.91)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6de4387c-ac2d-494d-83c2-19f93c8f8a5f")
+	)
+	(wire
+		(pts
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(xy 58.42 17.78) (xy 58.42 19.05)
 		)
 		(stroke
@@ -1589,32 +1819,53 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
 			(xy 167.64 74.93) (xy 167.64 91.44)
+=======
+			(xy 110.49 74.93) (xy 110.49 91.44)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
+<<<<<<< HEAD
 		(uuid "73704287-6803-4e62-a570-4d4e436d81ed")
 	)
 	(wire
 		(pts
 			(xy 138.43 50.8) (xy 138.43 74.93)
+=======
+		(uuid "7975d361-eeac-4da5-ac0d-2a99626c313c")
+	)
+	(wire
+		(pts
+			(xy 48.26 81.28) (xy 55.88 81.28)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
+<<<<<<< HEAD
 		(uuid "74b336ec-6c0a-4a12-ab4b-54c6c1d24c84")
 	)
 	(wire
 		(pts
 			(xy 167.64 17.78) (xy 167.64 24.13)
+=======
+		(uuid "8e568e98-cc57-49b7-a8a6-fc3e659a4d1e")
+	)
+	(wire
+		(pts
+			(xy 40.64 48.26) (xy 40.64 54.61)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
+<<<<<<< HEAD
 		(uuid "7a20e111-9eec-48ea-9ded-2cf8ea8ebd0e")
 	)
 	(wire
@@ -1636,6 +1887,9 @@
 			(type default)
 		)
 		(uuid "8d8049a8-32dc-480f-aaf1-6ac3df846b41")
+=======
+		(uuid "9390d6c4-699f-48be-8c84-fc77ce1fcf3f")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	)
 	(wire
 		(pts
@@ -1649,12 +1903,17 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
 			(xy 140.97 17.78) (xy 140.97 19.05)
+=======
+			(xy 20.32 54.61) (xy 30.48 54.61)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
+<<<<<<< HEAD
 		(uuid "96e458ae-b8cc-432f-a768-ee116be68c0f")
 	)
 	(wire
@@ -1666,6 +1925,9 @@
 			(type default)
 		)
 		(uuid "99c1d6e7-9a6f-450e-a546-ed54c330bbe9")
+=======
+		(uuid "a1bb012c-5ea1-4e78-a7ac-f76f86a45791")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	)
 	(wire
 		(pts
@@ -1679,6 +1941,19 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
+=======
+			(xy 82.55 74.93) (xy 82.55 91.44)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a61f7feb-59ab-40e9-a367-15d6ecc407a0")
+	)
+	(wire
+		(pts
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(xy 82.55 29.21) (xy 82.55 30.48)
 		)
 		(stroke
@@ -1689,22 +1964,35 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
 			(xy 82.55 74.93) (xy 82.55 91.44)
+=======
+			(xy 30.48 48.26) (xy 30.48 54.61)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
+<<<<<<< HEAD
 		(uuid "a9008908-c33e-456e-bf90-e7148060c13e")
 	)
 	(wire
 		(pts
 			(xy 138.43 91.44) (xy 167.64 91.44)
+=======
+		(uuid "ada26676-541d-4e0a-aa8c-7bff539fe5c5")
+	)
+	(wire
+		(pts
+			(xy 20.32 43.18) (xy 20.32 41.91)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
+<<<<<<< HEAD
 		(uuid "a9f8423c-66af-46a7-b116-fdbeb3fbe0c9")
 	)
 	(wire
@@ -1726,6 +2014,9 @@
 			(type default)
 		)
 		(uuid "af55edda-4293-4ce3-8c60-7d2aebcd3b05")
+=======
+		(uuid "b2791714-eb02-4a54-a1cd-9416626f9766")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	)
 	(wire
 		(pts
@@ -1739,6 +2030,7 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
 			(xy 100.33 74.93) (xy 105.41 74.93)
 		)
 		(stroke
@@ -1779,6 +2071,8 @@
 	)
 	(wire
 		(pts
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(xy 55.88 29.21) (xy 55.88 30.48)
 		)
 		(stroke
@@ -1789,6 +2083,29 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
+=======
+			(xy 48.26 48.26) (xy 48.26 54.61)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c9337de7-f6dd-415b-b478-6a37e2af6628")
+	)
+	(wire
+		(pts
+			(xy 102.87 74.93) (xy 110.49 74.93)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cdd69d88-452e-4b08-934d-4debdb79eca1")
+	)
+	(wire
+		(pts
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(xy 74.93 132.08) (xy 64.77 132.08)
 		)
 		(stroke
@@ -1809,13 +2126,21 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
 			(xy 128.27 74.93) (xy 133.35 74.93)
+=======
+			(xy 74.93 74.93) (xy 82.55 74.93)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
+<<<<<<< HEAD
 		(uuid "e10f99ee-7201-4c99-9fde-e218ca5eb486")
+=======
+		(uuid "e382ccb1-dc12-41f1-89af-9afd9e71a166")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	)
 	(wire
 		(pts
@@ -1829,12 +2154,17 @@
 	)
 	(wire
 		(pts
+<<<<<<< HEAD
 			(xy 157.48 74.93) (xy 162.56 74.93)
+=======
+			(xy 40.64 54.61) (xy 48.26 54.61)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		)
 		(stroke
 			(width 0)
 			(type default)
 		)
+<<<<<<< HEAD
 		(uuid "e635a969-9083-47a5-b948-1c890d120167")
 	)
 	(wire
@@ -1856,6 +2186,9 @@
 			(type default)
 		)
 		(uuid "f2f2ff33-d825-4577-a26b-0f473bc183f9")
+=======
+		(uuid "e539868a-79e8-49eb-9fa9-a872c201abcf")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	)
 	(wire
 		(pts
@@ -1917,6 +2250,7 @@
 		)
 		(uuid "aab3d645-812f-4d25-81e9-27ee0a3c5939")
 	)
+<<<<<<< HEAD
 	(label "s5"
 		(at 74.93 142.24 0)
 		(effects
@@ -1927,6 +2261,8 @@
 		)
 		(uuid "af459db1-94d2-4dd0-a76f-033c61319d5b")
 	)
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	(label "s2"
 		(at 87.63 26.67 0)
 		(effects
@@ -1947,6 +2283,7 @@
 		)
 		(uuid "caedf5bc-f2e5-4b82-9eb6-2f399c988ee1")
 	)
+<<<<<<< HEAD
 	(label "s4"
 		(at 146.05 26.67 0)
 		(effects
@@ -1967,6 +2304,8 @@
 		)
 		(uuid "ec092f65-ca12-4ab1-9351-000fcca4c471")
 	)
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	(label "s1"
 		(at 62.23 27.94 0)
 		(effects
@@ -1977,6 +2316,7 @@
 		)
 		(uuid "f4270b95-3e45-4cf1-8f1a-d8560ecbd0d3")
 	)
+<<<<<<< HEAD
 	(label "s5"
 		(at 173.99 26.67 0)
 		(effects
@@ -2009,6 +2349,8 @@
 		)
 		(uuid "4a95e303-40f1-488f-b426-2334471ed324")
 	)
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	(hierarchical_label "s3"
 		(shape output)
 		(at 118.11 26.67 0)
@@ -2044,7 +2386,11 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
+<<<<<<< HEAD
 		(at 140.97 55.88 180)
+=======
+		(at 48.26 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -2053,9 +2399,15 @@
 		(in_pos_files yes)
 		(dnp no)
 		(fields_autoplaced yes)
+<<<<<<< HEAD
 		(uuid "00122da3-4cd1-4eed-b24b-217f6e35d287")
 		(property "Reference" "#PWR09"
 			(at 140.97 52.07 0)
+=======
+		(uuid "017a02dd-6753-4480-9ff4-b670369eb60b")
+		(property "Reference" "#PWR051"
+			(at 48.26 38.1 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2066,6 +2418,7 @@
 			)
 		)
 		(property "Value" "+5V"
+<<<<<<< HEAD
 			(at 140.97 60.96 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2145,6 +2498,9 @@
 		)
 		(property "Value" "+5V"
 			(at 124.46 74.9299 90)
+=======
+			(at 48.2599 30.48 90)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2155,7 +2511,11 @@
 			)
 		)
 		(property "Footprint" ""
+<<<<<<< HEAD
 			(at 128.27 74.93 0)
+=======
+			(at 48.26 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2166,7 +2526,11 @@
 			)
 		)
 		(property "Datasheet" ""
+<<<<<<< HEAD
 			(at 128.27 74.93 0)
+=======
+			(at 48.26 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2177,7 +2541,11 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+<<<<<<< HEAD
 			(at 128.27 74.93 0)
+=======
+			(at 48.26 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2188,6 +2556,7 @@
 			)
 		)
 		(pin "1"
+<<<<<<< HEAD
 			(uuid "8380f99a-68e4-4fea-b313-5387eeaffcb5")
 		)
 		(instances
@@ -2287,6 +2656,14 @@
 			(project "mach_do_line"
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "D3")
+=======
+			(uuid "43c99e05-5c5c-4dd7-a7d7-6dd1c9246228")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "#PWR051")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 					(unit 1)
 				)
 			)
@@ -2363,7 +2740,11 @@
 			(uuid "57ee8ad4-d399-485d-b512-63b1f90de09e")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "R4")
 					(unit 1)
@@ -2372,6 +2753,7 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "Connector:Conn_01x01_Pin")
 		(at 59.69 139.7 0)
 		(unit 1)
@@ -2450,6 +2832,10 @@
 	(symbol
 		(lib_id "power:+3V3")
 		(at 232.41 52.07 0)
+=======
+		(lib_id "power:+3V3")
+		(at 97.79 74.93 90)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -2458,9 +2844,15 @@
 		(in_pos_files yes)
 		(dnp no)
 		(fields_autoplaced yes)
+<<<<<<< HEAD
 		(uuid "04996a96-3582-45b8-9e85-6f9c16ad5a0f")
 		(property "Reference" "#PWR017"
 			(at 232.41 55.88 0)
+=======
+		(uuid "0494d851-c745-42c1-b7b8-d16e6032718e")
+		(property "Reference" "#PWR047"
+			(at 101.6 74.93 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2471,6 +2863,7 @@
 			)
 		)
 		(property "Value" "+5V"
+<<<<<<< HEAD
 			(at 232.41 46.99 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2804,6 +3197,9 @@
 		)
 		(property "Value" "GND"
 			(at 101.6 92.7099 0)
+=======
+			(at 93.98 74.9299 90)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -2814,7 +3210,11 @@
 			)
 		)
 		(property "Footprint" ""
+<<<<<<< HEAD
 			(at 99.06 91.44 0)
+=======
+			(at 97.79 74.93 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2825,7 +3225,170 @@
 			)
 		)
 		(property "Datasheet" ""
+<<<<<<< HEAD
 			(at 99.06 91.44 0)
+=======
+			(at 97.79 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 97.79 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "42481487-6e71-423e-b061-98bc9a1b31e7")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "#PWR047")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 100.33 74.93 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "10dcea2f-2d20-4fc5-b670-3a832170c14f")
+		(property "Reference" "C3"
+			(at 100.33 68.58 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100uF"
+			(at 100.33 71.12 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
+			(at 100.33 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 100.33 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor, small symbol"
+			(at 110.49 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "0f7450da-72b7-47e5-b1dc-1a38c210d353")
+		)
+		(pin "1"
+			(uuid "80f72287-ce69-404b-b05c-af053300082f")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "C3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 82.55 91.44 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "119abc80-bfb7-4910-9f48-141cc371ba65")
+		(property "Reference" "#PWR020"
+			(at 82.55 97.79 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 85.09 92.7099 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 82.55 91.44 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 82.55 91.44 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2836,7 +3399,11 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+<<<<<<< HEAD
 			(at 99.06 91.44 0)
+=======
+			(at 82.55 91.44 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -2850,7 +3417,11 @@
 			(uuid "39c53da1-de68-44d2-b4ff-29245b702fb5")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR020")
 					(unit 1)
@@ -2859,6 +3430,7 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "power:+3V3")
 		(at 215.9 52.07 0)
 		(unit 1)
@@ -2937,6 +3509,8 @@
 		)
 	)
 	(symbol
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(lib_id "Connector:Conn_01x01_Pin")
 		(at 78.74 100.33 0)
 		(unit 1)
@@ -3005,7 +3579,11 @@
 			(uuid "13a5598f-2bbb-47f7-b8c6-033b7bf5b699")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "J15")
 					(unit 1)
@@ -3014,6 +3592,7 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "power:+3V3")
 		(at 140.97 17.78 0)
 		(unit 1)
@@ -3503,6 +4082,8 @@
 		)
 	)
 	(symbol
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(lib_id "Device:R_Small")
 		(at 110.49 26.67 180)
 		(unit 1)
@@ -3573,7 +4154,11 @@
 			(uuid "09aa11ba-7959-4cda-ac83-6945d7f74ea2")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "R9")
 					(unit 1)
@@ -3582,6 +4167,89 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
+=======
+		(lib_id "Device:C_Small")
+		(at 72.39 74.93 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "29b8c517-4b5a-4228-acd7-9838918f3559")
+		(property "Reference" "C2"
+			(at 72.39 68.58 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100uF"
+			(at 72.39 71.12 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
+			(at 72.39 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 72.39 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor, small symbol"
+			(at 82.55 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "c561cfa4-18ac-45c9-b2f0-2457b2ca9554")
+		)
+		(pin "1"
+			(uuid "1eb489d7-9782-440b-9035-85d80895e9e0")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "C2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(lib_id "power:+3V3")
 		(at 83.82 102.87 270)
 		(unit 1)
@@ -3652,7 +4320,11 @@
 			(uuid "5de11106-1fb8-412d-8c93-6d1cb7d62271")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR044")
 					(unit 1)
@@ -3662,6 +4334,7 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
+<<<<<<< HEAD
 		(at 100.33 74.93 90)
 		(unit 1)
 		(body_style 1)
@@ -3820,6 +4493,8 @@
 	)
 	(symbol
 		(lib_id "power:+3V3")
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(at 113.03 17.78 0)
 		(unit 1)
 		(body_style 1)
@@ -3887,7 +4562,11 @@
 			(uuid "59a51f7e-72e9-4ae9-9671-a23aafc5eee2")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR06")
 					(unit 1)
@@ -4061,7 +4740,11 @@
 			(uuid "4f05eed5-727d-41a2-a994-9be145ca718f")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "U4")
 					(unit 1)
@@ -4070,8 +4753,13 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "Device:R_Small")
 		(at 199.39 59.69 0)
+=======
+		(lib_id "power:+3V3")
+		(at 40.64 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -4080,13 +4768,21 @@
 		(in_pos_files yes)
 		(dnp no)
 		(fields_autoplaced yes)
+<<<<<<< HEAD
 		(uuid "3df2dcc8-6784-4b89-8800-e1c4f3ff5f3c")
 		(property "Reference" "R19"
 			(at 201.93 58.4199 0)
+=======
+		(uuid "3f3eef34-d728-4837-9cf7-be27886383d6")
+		(property "Reference" "#PWR050"
+			(at 40.64 38.1 0)
+			(hide yes)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
+<<<<<<< HEAD
 					(size 1.016 1.016)
 				)
 				(justify left)
@@ -4094,6 +4790,14 @@
 		)
 		(property "Value" "220"
 			(at 201.93 60.9599 0)
+=======
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+5V"
+			(at 40.6399 30.48 90)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -4103,8 +4807,13 @@
 				(justify left)
 			)
 		)
+<<<<<<< HEAD
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
 			(at 199.39 59.69 0)
+=======
+		(property "Footprint" ""
+			(at 40.64 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4115,7 +4824,11 @@
 			)
 		)
 		(property "Datasheet" ""
+<<<<<<< HEAD
 			(at 199.39 59.69 0)
+=======
+			(at 40.64 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4125,8 +4838,13 @@
 				)
 			)
 		)
+<<<<<<< HEAD
 		(property "Description" "Resistor, small symbol"
 			(at 199.39 59.69 0)
+=======
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 40.64 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4136,6 +4854,7 @@
 				)
 			)
 		)
+<<<<<<< HEAD
 		(pin "2"
 			(uuid "fc570e9f-7298-462f-8147-7b5db7106201")
 		)
@@ -4228,6 +4947,15 @@
 			(project "mach_do_line"
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "R18")
+=======
+		(pin "1"
+			(uuid "0228223c-ced1-4367-a974-85a5224df3b3")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "#PWR050")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 					(unit 1)
 				)
 			)
@@ -4302,7 +5030,11 @@
 			(uuid "cc2eb06b-d7fc-40c8-a4b8-9f4fdb931ff5")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR022")
 					(unit 1)
@@ -4381,7 +5113,11 @@
 			(uuid "d224817e-12a9-4425-bd1b-e85e1a5bab5e")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "R7")
 					(unit 1)
@@ -4390,6 +5126,7 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "power:GND")
 		(at 182.88 83.82 0)
 		(unit 1)
@@ -4548,6 +5285,8 @@
 		)
 	)
 	(symbol
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(lib_id "RPR-220:RPR-220")
 		(at 55.88 50.8 90)
 		(unit 1)
@@ -4713,7 +5452,11 @@
 			(uuid "6e2d78f2-0c26-46df-9cbc-c5f9341fbe9b")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "U2")
 					(unit 1)
@@ -4790,7 +5533,11 @@
 			(uuid "59aa9bc0-9397-44f1-97ad-aa077538d5f4")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR023")
 					(unit 1)
@@ -4799,6 +5546,7 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "power:+3V3")
 		(at 232.41 29.21 0)
 		(unit 1)
@@ -4879,6 +5627,10 @@
 	(symbol
 		(lib_id "Mechanical:MountingHole")
 		(at 151.13 154.94 0)
+=======
+		(lib_id "Mechanical:MountingHole")
+		(at 52.07 119.38 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -4889,7 +5641,11 @@
 		(fields_autoplaced yes)
 		(uuid "5ac2c283-f35d-411b-9636-4505fbfa1e78")
 		(property "Reference" "H1"
+<<<<<<< HEAD
 			(at 153.67 153.6699 0)
+=======
+			(at 54.61 118.1099 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -4900,7 +5656,11 @@
 			)
 		)
 		(property "Value" "MountingHole"
+<<<<<<< HEAD
 			(at 153.67 156.2099 0)
+=======
+			(at 54.61 120.6499 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -4911,7 +5671,11 @@
 			)
 		)
 		(property "Footprint" "MountingHole:MountingHole_2.2mm_M2_ISO14580_Pad_TopBottom"
+<<<<<<< HEAD
 			(at 151.13 154.94 0)
+=======
+			(at 52.07 119.38 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4922,7 +5686,11 @@
 			)
 		)
 		(property "Datasheet" ""
+<<<<<<< HEAD
 			(at 151.13 154.94 0)
+=======
+			(at 52.07 119.38 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4933,7 +5701,11 @@
 			)
 		)
 		(property "Description" "Mounting Hole without connection"
+<<<<<<< HEAD
 			(at 151.13 154.94 0)
+=======
+			(at 52.07 119.38 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4944,7 +5716,11 @@
 			)
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "H1")
 					(unit 1)
@@ -4953,6 +5729,7 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "Device:R_Small")
 		(at 215.9 36.83 0)
 		(unit 1)
@@ -5035,6 +5812,8 @@
 		)
 	)
 	(symbol
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(lib_id "Connector:Conn_01x01_Pin")
 		(at 59.69 137.16 0)
 		(unit 1)
@@ -5102,7 +5881,11 @@
 			(uuid "b1fed5b4-bc55-4fa1-8b65-123e4164b2c2")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "J11")
 					(unit 1)
@@ -5181,7 +5964,11 @@
 			(uuid "81777049-cb02-4456-b613-0dd899e64ef6")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR041")
 					(unit 1)
@@ -5190,6 +5977,7 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "Device:R_Small")
 		(at 140.97 21.59 180)
 		(unit 1)
@@ -5922,6 +6710,8 @@
 		)
 	)
 	(symbol
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(lib_id "power:+3V3")
 		(at 58.42 55.88 180)
 		(unit 1)
@@ -5991,7 +6781,11 @@
 			(uuid "a977f755-0b5e-4db3-b7d7-4fd6b2b4cc85")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR02")
 					(unit 1)
@@ -6069,7 +6863,11 @@
 			(uuid "d21c7a7f-fa3d-4dd2-8190-e97fb9b88df6")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR05")
 					(unit 1)
@@ -6148,7 +6946,11 @@
 			(uuid "42cf3441-43c6-47c5-a0f1-2c7736419629")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "R11")
 					(unit 1)
@@ -6157,8 +6959,13 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "Device:R_Small")
 		(at 170.18 53.34 180)
+=======
+		(lib_id "Device:LED")
+		(at 20.32 38.1 90)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -6166,6 +6973,7 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
+<<<<<<< HEAD
 		(uuid "795dd288-0acc-4c5f-8a71-478d17a1f82c")
 		(property "Reference" "R17"
 			(at 168.656 53.34 90)
@@ -6179,6 +6987,12 @@
 		)
 		(property "Value" "220R"
 			(at 172.212 53.848 90)
+=======
+		(fields_autoplaced yes)
+		(uuid "74bdfa78-cc72-4dd7-9882-ae9c302bd86b")
+		(property "Reference" "D1"
+			(at 13.97 39.6875 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6187,8 +7001,23 @@
 				)
 			)
 		)
+<<<<<<< HEAD
 		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
 			(at 170.18 53.34 0)
+=======
+		(property "Value" "LED"
+			(at 16.51 39.6875 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
+			(at 20.32 38.1 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6199,7 +7028,191 @@
 			)
 		)
 		(property "Datasheet" ""
+<<<<<<< HEAD
 			(at 170.18 53.34 0)
+=======
+			(at 20.32 38.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Light emitting diode"
+			(at 20.32 38.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Sim.Pins" "1=K 2=A"
+			(at 20.32 38.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "39680754-e932-43db-924c-7b9f14e760c0")
+		)
+		(pin "1"
+			(uuid "7bb8a7d5-03a3-4c28-9842-162aed21fe7b")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "D1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:LED")
+		(at 30.48 38.1 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "79069235-f7ce-4076-b478-1e99805e2122")
+		(property "Reference" "D2"
+			(at 20.32 40.9575 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "LED"
+			(at 27.178 38.1 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
+			(at 30.48 38.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 30.48 38.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Light emitting diode"
+			(at 30.48 38.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Sim.Pins" "1=K 2=A"
+			(at 30.48 38.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "cc839d45-94b3-40bd-93e8-149d9bc47d81")
+		)
+		(pin "1"
+			(uuid "d7f48d15-749d-4bfc-8678-f1d982649a41")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "D2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:R_Small")
+		(at 20.32 45.72 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "7b4463ed-c91e-4308-859e-08f2c05bb13e")
+		(property "Reference" "R12"
+			(at 21.844 45.72 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.016 1.016)
+				)
+			)
+		)
+		(property "Value" "220R"
+			(at 18.288 45.212 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 20.32 45.72 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 20.32 45.72 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6210,7 +7223,11 @@
 			)
 		)
 		(property "Description" "Resistor, small symbol"
+<<<<<<< HEAD
 			(at 170.18 53.34 0)
+=======
+			(at 20.32 45.72 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6221,6 +7238,7 @@
 			)
 		)
 		(pin "1"
+<<<<<<< HEAD
 			(uuid "5a790e10-0183-42b1-9142-0b91510340cd")
 		)
 		(pin "2"
@@ -6230,6 +7248,17 @@
 			(project "mach_do_line"
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "R17")
+=======
+			(uuid "fb3bedf7-b2f4-42fd-bc3e-70b8d354ae0f")
+		)
+		(pin "2"
+			(uuid "dffa69ea-dba4-46af-9499-581700cce02b")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "R12")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 					(unit 1)
 				)
 			)
@@ -6304,7 +7333,11 @@
 			(uuid "36059c47-5346-4ac6-b4f8-f72b9280b4bf")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR03")
 					(unit 1)
@@ -6383,7 +7416,11 @@
 			(uuid "91f32fbb-5e5f-43e0-a2b1-a16270891c00")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR039")
 					(unit 1)
@@ -6459,7 +7496,11 @@
 			(uuid "541f694a-2d65-499d-87f0-2e2c76aac5e3")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "J10")
 					(unit 1)
@@ -6535,7 +7576,11 @@
 			(uuid "1584730b-4b31-4c98-a6a8-3dd388489b8d")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "J2")
 					(unit 1)
@@ -6544,6 +7589,7 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "power:+3V3")
 		(at 170.18 55.88 180)
 		(unit 1)
@@ -6622,6 +7668,8 @@
 		)
 	)
 	(symbol
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(lib_id "RPR-220:RPR-220")
 		(at 82.55 50.8 90)
 		(unit 1)
@@ -6787,7 +7835,11 @@
 			(uuid "12f68bde-b1e2-4eb6-aae7-3cbb7757b914")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "U3")
 					(unit 1)
@@ -6796,8 +7848,13 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "Connector:Conn_01x01_Pin")
 		(at 59.69 142.24 0)
+=======
+		(lib_id "Device:R_Small")
+		(at 30.48 45.72 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -6805,9 +7862,25 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
+<<<<<<< HEAD
 		(uuid "92de0928-7c22-4da1-b6f9-ecd250db45f2")
 		(property "Reference" "J18"
 			(at 55.626 142.494 0)
+=======
+		(uuid "9109c8a5-5b73-44f9-ac97-c70dabc9337f")
+		(property "Reference" "R13"
+			(at 32.004 45.72 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.016 1.016)
+				)
+			)
+		)
+		(property "Value" "220R"
+			(at 28.448 45.212 90)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6816,6 +7889,7 @@
 				)
 			)
 		)
+<<<<<<< HEAD
 		(property "Value" "Conn_01x01_Pin"
 			(at 46.482 139.446 0)
 			(show_name no)
@@ -6828,6 +7902,10 @@
 		)
 		(property "Footprint" "SolderPAD-2x4mm:PAD-2x4mm-SMD"
 			(at 59.69 142.24 0)
+=======
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 30.48 45.72 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6838,7 +7916,11 @@
 			)
 		)
 		(property "Datasheet" ""
+<<<<<<< HEAD
 			(at 59.69 142.24 0)
+=======
+			(at 30.48 45.72 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6848,8 +7930,13 @@
 				)
 			)
 		)
+<<<<<<< HEAD
 		(property "Description" "Generic connector, single row, 01x01, script generated"
 			(at 59.69 142.24 0)
+=======
+		(property "Description" "Resistor, small symbol"
+			(at 30.48 45.72 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6860,12 +7947,24 @@
 			)
 		)
 		(pin "1"
+<<<<<<< HEAD
 			(uuid "6d1497fc-67b5-4694-8fe7-15f475b35d92")
 		)
 		(instances
 			(project "mach_do_line"
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "J18")
+=======
+			(uuid "58f97e3b-8327-41c3-a9b8-2324d21437d1")
+		)
+		(pin "2"
+			(uuid "a3b7c0ee-9cb4-43ef-8375-a00aa157648f")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "R13")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 					(unit 1)
 				)
 			)
@@ -6942,7 +8041,11 @@
 			(uuid "a0a38ee1-a215-4865-8103-b76f5fca29e8")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "R10")
 					(unit 1)
@@ -6951,6 +8054,7 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "power:GND")
 		(at 167.64 17.78 180)
 		(unit 1)
@@ -7028,6 +8132,8 @@
 		)
 	)
 	(symbol
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(lib_id "power:+3V3")
 		(at 113.03 55.88 180)
 		(unit 1)
@@ -7097,7 +8203,11 @@
 			(uuid "e3972270-b90a-4211-81fe-3c9f5859ecb1")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR07")
 					(unit 1)
@@ -7106,6 +8216,7 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "Device:LED_Small")
 		(at 232.41 54.61 90)
 		(unit 1)
@@ -7278,6 +8389,8 @@
 		)
 	)
 	(symbol
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(lib_id "Connector:Conn_01x01_Pin")
 		(at 60.96 100.33 0)
 		(unit 1)
@@ -7346,7 +8459,11 @@
 			(uuid "92bc0d81-1c1f-4244-8563-50e6de9b1897")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "J3")
 					(unit 1)
@@ -7425,7 +8542,11 @@
 			(uuid "deaaf82f-1499-4664-8c10-c49b137d1d5a")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "R8")
 					(unit 1)
@@ -7435,7 +8556,11 @@
 	)
 	(symbol
 		(lib_id "Mechanical:MountingHole")
+<<<<<<< HEAD
 		(at 173.99 154.94 0)
+=======
+		(at 74.93 119.38 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -7446,7 +8571,11 @@
 		(fields_autoplaced yes)
 		(uuid "a800bd4f-0ca6-427e-a703-7c8c9012d400")
 		(property "Reference" "H2"
+<<<<<<< HEAD
 			(at 176.53 153.6699 0)
+=======
+			(at 77.47 118.1099 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7457,7 +8586,11 @@
 			)
 		)
 		(property "Value" "MountingHole"
+<<<<<<< HEAD
 			(at 176.53 156.2099 0)
+=======
+			(at 77.47 120.6499 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7468,7 +8601,11 @@
 			)
 		)
 		(property "Footprint" "MountingHole:MountingHole_2.2mm_M2_ISO14580_Pad_TopBottom"
+<<<<<<< HEAD
 			(at 173.99 154.94 0)
+=======
+			(at 74.93 119.38 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7479,7 +8616,11 @@
 			)
 		)
 		(property "Datasheet" ""
+<<<<<<< HEAD
 			(at 173.99 154.94 0)
+=======
+			(at 74.93 119.38 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7490,7 +8631,11 @@
 			)
 		)
 		(property "Description" "Mounting Hole without connection"
+<<<<<<< HEAD
 			(at 173.99 154.94 0)
+=======
+			(at 74.93 119.38 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7501,7 +8646,11 @@
 			)
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "H2")
 					(unit 1)
@@ -7578,7 +8727,11 @@
 			(uuid "12a40d20-953d-44eb-97c2-23b1841252c3")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR045")
 					(unit 1)
@@ -7587,6 +8740,7 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "power:+3V3")
 		(at 199.39 29.21 0)
 		(unit 1)
@@ -7665,6 +8819,8 @@
 		)
 	)
 	(symbol
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(lib_id "Connector:Conn_01x01_Pin")
 		(at 78.74 105.41 0)
 		(unit 1)
@@ -7733,7 +8889,11 @@
 			(uuid "aa3912fb-58c1-45d1-adea-4977f8d40b3d")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "J17")
 					(unit 1)
@@ -7810,7 +8970,11 @@
 			(uuid "5374b63e-a840-4a8b-a990-7daa56721f7b")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "J13")
 					(unit 1)
@@ -7819,8 +8983,13 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "power:+3V3")
 		(at 157.48 74.93 90)
+=======
+		(lib_id "Device:LED")
+		(at 40.64 38.1 90)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -7829,10 +8998,16 @@
 		(in_pos_files yes)
 		(dnp no)
 		(fields_autoplaced yes)
+<<<<<<< HEAD
 		(uuid "af40dceb-05ce-4fa9-9df0-844b2e093841")
 		(property "Reference" "#PWR049"
 			(at 161.29 74.93 0)
 			(hide yes)
+=======
+		(uuid "ae83a296-c9fb-4980-abbf-a975fc181482")
+		(property "Reference" "D3"
+			(at 34.29 39.6875 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7841,19 +9016,31 @@
 				)
 			)
 		)
+<<<<<<< HEAD
 		(property "Value" "+5V"
 			(at 153.67 74.9299 90)
+=======
+		(property "Value" "LED"
+			(at 36.83 39.6875 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+<<<<<<< HEAD
 				(justify left)
 			)
 		)
 		(property "Footprint" ""
 			(at 157.48 74.93 0)
+=======
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
+			(at 40.64 38.1 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7864,7 +9051,11 @@
 			)
 		)
 		(property "Datasheet" ""
+<<<<<<< HEAD
 			(at 157.48 74.93 0)
+=======
+			(at 40.64 38.1 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7874,6 +9065,7 @@
 				)
 			)
 		)
+<<<<<<< HEAD
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
 			(at 157.48 74.93 0)
 			(hide yes)
@@ -8034,6 +9226,10 @@
 		)
 		(property "Description" "Light emitting diode, small symbol"
 			(at 215.9 54.61 0)
+=======
+		(property "Description" "Light emitting diode"
+			(at 40.64 38.1 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8044,7 +9240,11 @@
 			)
 		)
 		(property "Sim.Pins" "1=K 2=A"
+<<<<<<< HEAD
 			(at 215.9 54.61 0)
+=======
+			(at 40.64 38.1 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8054,6 +9254,7 @@
 				)
 			)
 		)
+<<<<<<< HEAD
 		(pin "1"
 			(uuid "9ea6c2ed-2269-4015-a06c-349992c81e96")
 		)
@@ -8064,6 +9265,18 @@
 			(project "mach_do_line"
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "D5")
+=======
+		(pin "2"
+			(uuid "550ccab8-1893-46b7-8335-c9c8c0fcdce2")
+		)
+		(pin "1"
+			(uuid "4700b276-0629-4fea-847b-280f9b880790")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "D3")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 					(unit 1)
 				)
 			)
@@ -8140,7 +9353,11 @@
 			(uuid "557656a6-c94e-4062-88dc-1a5668e34765")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "R3")
 					(unit 1)
@@ -8149,6 +9366,7 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "Device:R_Small")
 		(at 232.41 59.69 0)
 		(unit 1)
@@ -8470,6 +9688,10 @@
 	(symbol
 		(lib_id "power:+3V3")
 		(at 199.39 52.07 0)
+=======
+		(lib_id "power:+3V3")
+		(at 20.32 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -8478,9 +9700,15 @@
 		(in_pos_files yes)
 		(dnp no)
 		(fields_autoplaced yes)
+<<<<<<< HEAD
 		(uuid "d41d80bc-3f6d-4452-be9e-dcbdcdc6aa84")
 		(property "Reference" "#PWR015"
 			(at 199.39 55.88 0)
+=======
+		(uuid "c28e6111-6a20-4804-a1d7-d00bcf7d5f9e")
+		(property "Reference" "#PWR048"
+			(at 20.32 38.1 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8491,17 +9719,29 @@
 			)
 		)
 		(property "Value" "+5V"
+<<<<<<< HEAD
 			(at 199.39 46.99 0)
+=======
+			(at 20.3199 30.48 90)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+<<<<<<< HEAD
 			)
 		)
 		(property "Footprint" ""
 			(at 199.39 52.07 0)
+=======
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 20.32 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8512,7 +9752,11 @@
 			)
 		)
 		(property "Datasheet" ""
+<<<<<<< HEAD
 			(at 199.39 52.07 0)
+=======
+			(at 20.32 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8523,7 +9767,11 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+<<<<<<< HEAD
 			(at 199.39 52.07 0)
+=======
+			(at 20.32 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8534,12 +9782,271 @@
 			)
 		)
 		(pin "1"
+<<<<<<< HEAD
 			(uuid "267ec8f7-2d93-4620-947b-cf51116e24c3")
 		)
 		(instances
 			(project "mach_do_line"
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR015")
+=======
+			(uuid "32289f95-9091-4765-bd0c-f9ae3e29b9e3")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "#PWR048")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:LED")
+		(at 48.26 38.1 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "cb426649-4610-486c-9ec9-b2292bb15874")
+		(property "Reference" "D4"
+			(at 41.91 39.6875 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "LED"
+			(at 44.45 39.6875 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric_Pad1.33x1.80mm_HandSolder"
+			(at 48.26 38.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 48.26 38.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Light emitting diode"
+			(at 48.26 38.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Sim.Pins" "1=K 2=A"
+			(at 48.26 38.1 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "bab3febf-092a-4c78-8233-256563fae557")
+		)
+		(pin "1"
+			(uuid "2726f72f-5cd6-4c57-9e67-b4bd655649a1")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "D4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 45.72 81.28 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "d45451a6-21b9-4924-9ecc-d0bb000f973b")
+		(property "Reference" "C4"
+			(at 45.72 74.93 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100uF"
+			(at 45.72 77.47 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
+			(at 45.72 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 45.72 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor, small symbol"
+			(at 55.88 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "1f8b4a19-73fb-4dd3-950b-c045be8e12fc")
+		)
+		(pin "1"
+			(uuid "97b3658f-e66b-4e6a-99c7-1867824a09d0")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "C4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+3V3")
+		(at 69.85 74.93 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "d6b6beb7-87ed-4cfc-b8d7-1fd62764b038")
+		(property "Reference" "#PWR046"
+			(at 73.66 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+5V"
+			(at 66.04 74.9299 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 69.85 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 69.85 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 69.85 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "46217329-8234-4676-8d9e-a37d4a331e49")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "#PWR046")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 					(unit 1)
 				)
 			)
@@ -8614,7 +10121,11 @@
 			(uuid "dd51d443-3a3d-47f6-94aa-afdf4941d7ab")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR043")
 					(unit 1)
@@ -8623,8 +10134,13 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "Device:LED_Small")
 		(at 199.39 31.75 90)
+=======
+		(lib_id "power:+3V3")
+		(at 30.48 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -8633,31 +10149,53 @@
 		(in_pos_files yes)
 		(dnp no)
 		(fields_autoplaced yes)
+<<<<<<< HEAD
 		(uuid "d8a088fe-cb39-4aa6-9fd8-47ee8056f2b0")
 		(property "Reference" "D1"
 			(at 201.93 30.4164 90)
+=======
+		(uuid "d83ff9d6-581c-4fc4-b701-e071e01a5c4b")
+		(property "Reference" "#PWR049"
+			(at 30.48 38.1 0)
+			(hide yes)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+<<<<<<< HEAD
 				(justify right)
 			)
 		)
 		(property "Value" "LED_Small"
 			(at 201.93 32.9564 90)
+=======
+			)
+		)
+		(property "Value" "+5V"
+			(at 30.4799 30.48 90)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+<<<<<<< HEAD
 				(justify right)
 			)
 		)
 		(property "Footprint" "LED_SMD:LED_1206_3216Metric_Pad1.42x1.75mm_HandSolder"
 			(at 199.39 31.75 90)
+=======
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 30.48 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8668,7 +10206,11 @@
 			)
 		)
 		(property "Datasheet" ""
+<<<<<<< HEAD
 			(at 199.39 31.75 90)
+=======
+			(at 30.48 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8678,6 +10220,7 @@
 				)
 			)
 		)
+<<<<<<< HEAD
 		(property "Description" "Light emitting diode, small symbol"
 			(at 199.39 31.75 0)
 			(hide yes)
@@ -8691,6 +10234,10 @@
 		)
 		(property "Sim.Pins" "1=K 2=A"
 			(at 199.39 31.75 0)
+=======
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 30.48 34.29 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8701,6 +10248,7 @@
 			)
 		)
 		(pin "1"
+<<<<<<< HEAD
 			(uuid "cc841e87-4f07-434f-8a9f-38df51248e63")
 		)
 		(pin "2"
@@ -8710,6 +10258,14 @@
 			(project "mach_do_line"
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "D1")
+=======
+			(uuid "3749787d-76dc-488b-b290-e1ce7bbefe57")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "#PWR049")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 					(unit 1)
 				)
 			)
@@ -8786,7 +10342,11 @@
 			(uuid "7ae03651-3245-4d14-bcc0-41af4d161236")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "R6")
 					(unit 1)
@@ -8863,7 +10423,11 @@
 			(uuid "e7bcee6b-2006-4628-988d-9c245dd33c4a")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR04")
 					(unit 1)
@@ -8872,8 +10436,13 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "power:+3V3")
 		(at 72.39 74.93 90)
+=======
+		(lib_id "Device:R_Small")
+		(at 40.64 45.72 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -8881,11 +10450,27 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
+<<<<<<< HEAD
 		(fields_autoplaced yes)
 		(uuid "dc731fce-302a-4f5a-b3f3-14f971b95bd9")
 		(property "Reference" "#PWR046"
 			(at 76.2 74.93 0)
 			(hide yes)
+=======
+		(uuid "de0640e5-3741-4e0e-bb7f-7ae42545199a")
+		(property "Reference" "R14"
+			(at 42.164 45.72 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.016 1.016)
+				)
+			)
+		)
+		(property "Value" "220R"
+			(at 38.608 45.212 90)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8894,6 +10479,7 @@
 				)
 			)
 		)
+<<<<<<< HEAD
 		(property "Value" "+5V"
 			(at 68.58 74.9299 90)
 			(show_name no)
@@ -8907,6 +10493,10 @@
 		)
 		(property "Footprint" ""
 			(at 72.39 74.93 0)
+=======
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 40.64 45.72 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8917,7 +10507,11 @@
 			)
 		)
 		(property "Datasheet" ""
+<<<<<<< HEAD
 			(at 72.39 74.93 0)
+=======
+			(at 40.64 45.72 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8927,8 +10521,13 @@
 				)
 			)
 		)
+<<<<<<< HEAD
 		(property "Description" "Power symbol creates a global label with name \"+3V3\""
 			(at 72.39 74.93 0)
+=======
+		(property "Description" "Resistor, small symbol"
+			(at 40.64 45.72 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8939,6 +10538,7 @@
 			)
 		)
 		(pin "1"
+<<<<<<< HEAD
 			(uuid "8c5405fb-f71b-452d-b8a1-736d6f622928")
 		)
 		(instances
@@ -9022,6 +10622,17 @@
 			(project "mach_do_line"
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR010")
+=======
+			(uuid "7617628e-4f68-4ab9-a650-38f940fc3ad2")
+		)
+		(pin "2"
+			(uuid "d370d99c-8bac-4b92-991f-d74f00fa8704")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "R14")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 					(unit 1)
 				)
 			)
@@ -9096,7 +10707,11 @@
 			(uuid "0848ef83-9f5c-493f-afae-4e068831c745")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR021")
 					(unit 1)
@@ -9105,8 +10720,13 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "Device:C_Small")
 		(at 107.95 74.93 90)
+=======
+		(lib_id "power:+3V3")
+		(at 43.18 81.28 90)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9115,9 +10735,16 @@
 		(in_pos_files yes)
 		(dnp no)
 		(fields_autoplaced yes)
+<<<<<<< HEAD
 		(uuid "e84005f2-0984-4413-9659-44ab1b3aaeeb")
 		(property "Reference" "C3"
 			(at 107.95 68.58 90)
+=======
+		(uuid "e2c41234-d1a8-4c56-8067-ba0539c59970")
+		(property "Reference" "#PWR052"
+			(at 46.99 81.28 0)
+			(hide yes)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9126,18 +10753,31 @@
 				)
 			)
 		)
+<<<<<<< HEAD
 		(property "Value" "100uF"
 			(at 107.95 71.12 90)
+=======
+		(property "Value" "+5V"
+			(at 39.37 81.2799 90)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+<<<<<<< HEAD
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
 			(at 107.95 74.93 0)
+=======
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 43.18 81.28 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9148,7 +10788,11 @@
 			)
 		)
 		(property "Datasheet" ""
+<<<<<<< HEAD
 			(at 107.95 74.93 0)
+=======
+			(at 43.18 81.28 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9158,8 +10802,13 @@
 				)
 			)
 		)
+<<<<<<< HEAD
 		(property "Description" "Unpolarized capacitor, small symbol"
 			(at 118.11 74.93 0)
+=======
+		(property "Description" "Power symbol creates a global label with name \"+3V3\""
+			(at 43.18 81.28 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9169,6 +10818,7 @@
 				)
 			)
 		)
+<<<<<<< HEAD
 		(pin "2"
 			(uuid "221cd14e-3317-408d-b112-6c4b625c3c7c")
 		)
@@ -9179,6 +10829,15 @@
 			(project "mach_do_line"
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "C3")
+=======
+		(pin "1"
+			(uuid "d50bf931-3e7c-4743-bb77-0de2ffc1decd")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "#PWR052")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 					(unit 1)
 				)
 			)
@@ -9253,7 +10912,11 @@
 			(uuid "91abea04-bb20-4ae1-84c9-c8ccfda9f658")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "J16")
 					(unit 1)
@@ -9263,6 +10926,88 @@
 	)
 	(symbol
 		(lib_id "power:GND")
+<<<<<<< HEAD
+=======
+		(at 30.48 54.61 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "e97c7906-a625-4218-932d-0845a6cc1071")
+		(property "Reference" "#PWR024"
+			(at 30.48 60.96 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 33.02 55.8799 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 30.48 54.61 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 30.48 54.61 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 30.48 54.61 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "667fe2a2-2b65-48f2-9c0c-d4e18b88a914")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "#PWR024")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(at 66.04 105.41 90)
 		(unit 1)
 		(body_style 1)
@@ -9330,7 +11075,11 @@
 			(uuid "4339de43-73a5-4083-a622-aa49bc685c25")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR040")
 					(unit 1)
@@ -9339,8 +11088,13 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "Device:LED_Small")
 		(at 199.39 54.61 90)
+=======
+		(lib_id "Device:R_Small")
+		(at 48.26 45.72 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9348,16 +11102,33 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
+<<<<<<< HEAD
 		(fields_autoplaced yes)
 		(uuid "f0171d57-862b-4315-bdd8-c702ae579643")
 		(property "Reference" "D4"
 			(at 201.93 53.2764 90)
+=======
+		(uuid "ee855d6c-8681-450b-9a33-cab9370e2dd1")
+		(property "Reference" "R15"
+			(at 49.784 45.72 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.016 1.016)
+				)
+			)
+		)
+		(property "Value" "220R"
+			(at 46.228 45.212 90)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+<<<<<<< HEAD
 				(justify right)
 			)
 		)
@@ -9374,6 +11145,12 @@
 		)
 		(property "Footprint" "LED_SMD:LED_1206_3216Metric_Pad1.42x1.75mm_HandSolder"
 			(at 199.39 54.61 90)
+=======
+			)
+		)
+		(property "Footprint" "Resistor_SMD:R_0805_2012Metric"
+			(at 48.26 45.72 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9384,7 +11161,11 @@
 			)
 		)
 		(property "Datasheet" ""
+<<<<<<< HEAD
 			(at 199.39 54.61 90)
+=======
+			(at 48.26 45.72 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9394,6 +11175,7 @@
 				)
 			)
 		)
+<<<<<<< HEAD
 		(property "Description" "Light emitting diode, small symbol"
 			(at 199.39 54.61 0)
 			(hide yes)
@@ -9407,6 +11189,10 @@
 		)
 		(property "Sim.Pins" "1=K 2=A"
 			(at 199.39 54.61 0)
+=======
+		(property "Description" "Resistor, small symbol"
+			(at 48.26 45.72 0)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9417,6 +11203,7 @@
 			)
 		)
 		(pin "1"
+<<<<<<< HEAD
 			(uuid "b2f7b609-e642-453b-8254-a50bb6f92abf")
 		)
 		(pin "2"
@@ -9426,6 +11213,17 @@
 			(project "mach_do_line"
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "D4")
+=======
+			(uuid "603d0e45-05dd-4ec5-8c36-ab2d316a8d11")
+		)
+		(pin "2"
+			(uuid "4ba8ef92-1b13-4cb9-9c58-332e552d9bc5")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "R15")
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 					(unit 1)
 				)
 			)
@@ -9500,7 +11298,11 @@
 			(uuid "a8e28dd5-97ed-4edb-8ff4-13f4b8a0892f")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "#PWR042")
 					(unit 1)
@@ -9577,7 +11379,11 @@
 			(uuid "ec1094a8-d680-4611-8c4c-f2fdf901ee06")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "J14")
 					(unit 1)
@@ -9586,6 +11392,7 @@
 		)
 	)
 	(symbol
+<<<<<<< HEAD
 		(lib_id "power:GND")
 		(at 138.43 17.78 180)
 		(unit 1)
@@ -9743,6 +11550,8 @@
 		)
 	)
 	(symbol
+=======
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 		(lib_id "Device:R_Small")
 		(at 55.88 26.67 180)
 		(unit 1)
@@ -9813,7 +11622,11 @@
 			(uuid "23f378e0-c0a2-443c-ba8e-2673d5d4ed27")
 		)
 		(instances
+<<<<<<< HEAD
 			(project "mach_do_line"
+=======
+			(project "mach_do_line_v2"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
 					(reference "R5")
 					(unit 1)
@@ -9821,6 +11634,89 @@
 			)
 		)
 	)
+<<<<<<< HEAD
+=======
+	(symbol
+		(lib_id "Device:C_Small")
+		(at 45.72 74.93 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "fdba9a29-aac2-47bd-82cb-efcea00e731c")
+		(property "Reference" "C1"
+			(at 45.72 68.58 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "100uF"
+			(at 45.72 71.12 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_1206_3216Metric"
+			(at 45.72 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 45.72 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor, small symbol"
+			(at 55.88 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "74d4691a-8476-4426-969c-00f396eadf8c")
+		)
+		(pin "1"
+			(uuid "d7f93f5c-ac6a-40f9-8145-03941c56ae0c")
+		)
+		(instances
+			(project "mach_do_line_v2"
+				(path "/8d8fc8c2-eeac-4400-9949-5e185cac9288"
+					(reference "C1")
+					(unit 1)
+				)
+			)
+		)
+	)
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
 	(sheet_instances
 		(path "/"
 			(page "1")

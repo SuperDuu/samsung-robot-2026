@@ -53,8 +53,12 @@
       "conflict_shadows",
       "shapes",
       "board_outline_area",
+<<<<<<< HEAD
       "ly_points",
       "via_stitching"
+=======
+      "ly_points"
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
     ],
     "visible_layers": "ffffffff_ffffffff_fffffff5_ffffffff",
     "zone_display_mode": 0
@@ -67,13 +71,14 @@
   },
   "meta": {
     "filename": "tay_dk.kicad_prl",
+<<<<<<< HEAD
     "version": 7
+=======
+    "version": 5
+>>>>>>> 721f9d59ff98976ddf6544bec45fbfad95ff9ce0
   },
   "net_inspector_panel": {
     "col_hidden": [
-      false,
-      false,
-      false,
       false,
       false,
       false,
@@ -95,23 +100,17 @@
       6,
       7,
       8,
-      9,
-      10,
-      11,
-      12
+      9
     ],
     "col_widths": [
       186,
-      112,
       171,
       112,
-      129,
-      79,
+      80,
       112,
       112,
       112,
-      126,
-      83,
+      84,
       112,
       112
     ],
