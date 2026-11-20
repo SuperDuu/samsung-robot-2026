@@ -404,7 +404,8 @@ int main(void) {
   }
 
   /* Wait for IMU POR (BNO080/085 up to 500ms, BNO055 up to 1200ms) and
-   * initialize in 9-DOF NDOF mode (0x0C) with magnetometer absolute heading lock */
+   * initialize in 6-DOF Accel+Gyro mode (BNO08x Game Rotation Vector 0x08 /
+   * BNO055 IMU 0x08), immune to motor/steel magnetic interference */
   BNO055_IMU_Init(&g_imu, &hi2c3);
   if (g_imu.connected) {
     /* Verified from PS2_STM32.c (vx=+RIGHT, vy=-FWD) + BNO085 CCW+ yaw:
