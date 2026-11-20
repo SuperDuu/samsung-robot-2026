@@ -498,10 +498,17 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
   assert(fabsf(fabsf(ctrl.omega_fb_pct) - DRIVE_OMNI_TRIM_ROT_PCT) < 0.01f);
   assert(abs(targets[0]) == 200); /* 20.0 RPM per wheel */
 
-  /* Release L2 locks current heading immediately */
+  /* Release L2: target_heading_deg remains at setpoint (0 deg), while heading_trim_deg absorbs offset */
   in.ps2_btn[1] = 0U;
   Drive_OmniCtrlStep(&ctrl, &in, false, 18.0f, true, 4000, modes, targets);
-  assert(fabsf(ctrl.target_heading_deg - 18.0f) < 0.01f);
+  assert(fabsf(ctrl.target_heading_deg - 0.0f) < 0.01f);
+  assert(fabsf(ctrl.heading_trim_deg - (-18.0f)) < 0.01f);
+
+  /* Pad snap test: pressing Triangle (0 deg) MUST NOT snap back to drifted raw 0 deg! */
+  in.ps2_btn[1] = DRIVE_PS2_B1_TRIANGLE;
+  Drive_OmniCtrlStep(&ctrl, &in, false, 18.0f, true, 4000, modes, targets);
+  assert(fabsf(ctrl.target_heading_deg - 0.0f) < 0.01f);
+  assert(targets[0] == 0 && targets[1] == 0 && targets[2] == 0 && targets[3] == 0);
 
   /* R2 rotates in opposite direction at 20 RPM */
   in.ps2_btn[1] = DRIVE_PS2_B1_R2;
@@ -730,7 +737,7 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
     assert(fabsf(trim_ctrl.heading_trim_deg -
                  (-DRIVE_OMNI_HEADING_TRIM_STEP_DEG)) < 0.001f);
     /* D-pad micro-adjustment test (16=UP, 32=RIGHT, 64=DOWN, 128=LEFT):
-     * Must move in precision crawl mode (DRIVE_OMNI_CRAWL_PCT = 25% = 100 RPM / 0.22 m/s) */
+     * Must move in precision crawl mode (DRIVE_OMNI_CRAWL_PCT = 15% = 60 RPM / 0.13 m/s) */
     tin.joy_sum[0] = 100U;
     tin.joy_sum[1] = 100U;
     tin.ps2_btn[0] = DRIVE_PS2_B0_UP; /* 16 */
@@ -740,9 +747,9 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
                          ttargets);
     }
     assert(trim_ctrl.active_speed_pct == DRIVE_OMNI_CRAWL_PCT);
-    /* Target RPM must be around 71 RPM (707 rpm_x10) for precision crawl (25% speed, overcoming stiction) */
+    /* Target RPM must be around 42 RPM (424 rpm_x10) for precision crawl (15% speed) */
     for (uint8_t w = 0U; w < 4U; w++) {
-      assert(abs(ttargets[w]) == 707); /* ~71 RPM */
+      assert(abs(ttargets[w]) == 424); /* ~42.4 RPM */
     }
 
     /* Servo code guard: values 200..203 must NOT trigger D-pad or movement */
@@ -1061,13 +1068,13 @@ static void test_servo_180_and_clamp_toggle(void) {
   assert(st.current_us == 500U);
   assert(fabsf(st.last_cmd - 0.0f) < 0.01f);
 
-  /* 2. 1st press (toggle to open): 40.0 deg */
+  /* 2. 1st press (toggle to open): 30.0 deg */
   assert(Servo_SetAngle180(SERVO_CLAMP_CH, SERVO_CLAMP_DEFAULT_OPEN_DEG) == HAL_OK);
-  /* Pulse = 500 + (40 / 180) * 2000 = 944 us */
-  assert(g_mock_tim4.CCR4 == 944U);
+  /* Pulse = 500 + (30 / 180) * 2000 = 833 us */
+  assert(g_mock_tim4.CCR4 == 833U);
   assert(Servo_GetState(SERVO_CLAMP_CH, &st));
-  assert(st.current_us == 944U);
-  assert(fabsf(st.last_cmd - 40.0f) < 0.01f);
+  assert(st.current_us == 833U);
+  assert(fabsf(st.last_cmd - 30.0f) < 0.01f);
 
   /* 3. 2nd press (toggle to closed): 0.0 deg */
   assert(Servo_SetAngle180(SERVO_CLAMP_CH, SERVO_CLAMP_DEFAULT_CLOSE_DEG) == HAL_OK);
@@ -1127,9 +1134,9 @@ static void test_servo_180_and_clamp_toggle(void) {
     prev_r1 = r1_now;
   }
   assert(fabsf(angles[0] - 0.0f) < 0.01f);
-  assert(fabsf(angles[1] - 40.0f) < 0.01f);
-  assert(fabsf(angles[2] - 40.0f) < 0.01f);
-  assert(fabsf(angles[3] - 40.0f) < 0.01f);
+  assert(fabsf(angles[1] - 30.0f) < 0.01f);
+  assert(fabsf(angles[2] - 30.0f) < 0.01f);
+  assert(fabsf(angles[3] - 30.0f) < 0.01f);
   assert(fabsf(angles[4] - 0.0f) < 0.01f);
   assert(fabsf(angles[5] - 0.0f) < 0.01f);
 
