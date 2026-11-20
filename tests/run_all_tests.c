@@ -1043,56 +1043,68 @@ static void test_servo_180_and_clamp_toggle(void) {
 
   assert(Servo_Init(&htim3, &htim4, &htim12) == HAL_OK);
 
-  /* Configure SERVO_CH_1 as 180-deg positional clamp servo */
+  /* Configure SERVO_CLAMP_CH (CH6 / TIM4_CH4 / PB9) as 180-deg positional clamp servo */
+  assert(Servo_Config180(SERVO_CLAMP_CH, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false) == HAL_OK);
   assert(Servo_Config180(SERVO_CH_1, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false) == HAL_OK);
   assert(Servo_Config180(SERVO_CH_2, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false) == HAL_OK);
+  /* Configure SERVO_360_CH2 (CH5 / TIM4_CH3 / PB8) as continuous 360 */
+  assert(Servo_Config360(SERVO_360_CH2, SERVO_PWM_NEUTRAL_US, 500U, 2.0f, false) == HAL_OK);
 
-  /* 1. Default initial state: 15.0 deg (normal open) */
-  assert(Servo_SetAngle180(SERVO_CH_1, SERVO_CLAMP_DEFAULT_OPEN_DEG) == HAL_OK);
+  /* 1. Default initial state on TIM4_CH4 (SERVO_CLAMP_CH): 15.0 deg (normal open) */
+  assert(Servo_SetAngle180(SERVO_CLAMP_CH, SERVO_CLAMP_DEFAULT_OPEN_DEG) == HAL_OK);
   /* Pulse = 500 + (15 / 180) * 2000 = 667 us */
-  assert(g_mock_tim3.CCR3 == 667U);
+  assert(g_mock_tim4.CCR4 == 667U);
 
   Servo_ChannelState_t st;
-  assert(Servo_GetState(SERVO_CH_1, &st));
+  assert(Servo_GetState(SERVO_CLAMP_CH, &st));
   assert(st.mode == SERVO_MODE_ANGLE_180);
   assert(st.current_us == 667U);
   assert(fabsf(st.last_cmd - 15.0f) < 0.01f);
 
   /* 2. 1st press (toggle to closed): 0.0 deg */
-  assert(Servo_SetAngle180(SERVO_CH_1, SERVO_CLAMP_DEFAULT_CLOSE_DEG) == HAL_OK);
+  assert(Servo_SetAngle180(SERVO_CLAMP_CH, SERVO_CLAMP_DEFAULT_CLOSE_DEG) == HAL_OK);
   /* Pulse = 500 + 0 = 500 us */
-  assert(g_mock_tim3.CCR3 == 500U);
-  assert(Servo_GetState(SERVO_CH_1, &st));
+  assert(g_mock_tim4.CCR4 == 500U);
+  assert(Servo_GetState(SERVO_CLAMP_CH, &st));
   assert(st.current_us == 500U);
   assert(fabsf(st.last_cmd - 0.0f) < 0.01f);
 
   /* 3. 2nd press (toggle to open): 15.0 deg */
-  assert(Servo_SetAngle180(SERVO_CH_1, SERVO_CLAMP_DEFAULT_OPEN_DEG) == HAL_OK);
-  assert(g_mock_tim3.CCR3 == 667U);
+  assert(Servo_SetAngle180(SERVO_CLAMP_CH, SERVO_CLAMP_DEFAULT_OPEN_DEG) == HAL_OK);
+  assert(g_mock_tim4.CCR4 == 667U);
 
-  /* 4. Full range & clamping boundary checks */
-  assert(Servo_SetAngle180(SERVO_CH_1, 90.0f) == HAL_OK);
-  assert(g_mock_tim3.CCR3 == 1500U);
+  /* 4. Full range & clamping boundary checks on TIM4_CH4 */
+  assert(Servo_SetAngle180(SERVO_CLAMP_CH, 90.0f) == HAL_OK);
+  assert(g_mock_tim4.CCR4 == 1500U);
 
-  assert(Servo_SetAngle180(SERVO_CH_1, 180.0f) == HAL_OK);
-  assert(g_mock_tim3.CCR3 == 2500U);
+  assert(Servo_SetAngle180(SERVO_CLAMP_CH, 180.0f) == HAL_OK);
+  assert(g_mock_tim4.CCR4 == 2500U);
 
   /* Clamp negative angles to 0 deg */
-  assert(Servo_SetAngle180(SERVO_CH_1, -10.0f) == HAL_OK);
-  assert(g_mock_tim3.CCR3 == 500U);
+  assert(Servo_SetAngle180(SERVO_CLAMP_CH, -10.0f) == HAL_OK);
+  assert(g_mock_tim4.CCR4 == 500U);
 
   /* Clamp excessive angles to 180 deg */
-  assert(Servo_SetAngle180(SERVO_CH_1, 200.0f) == HAL_OK);
-  assert(g_mock_tim3.CCR3 == 2500U);
+  assert(Servo_SetAngle180(SERVO_CLAMP_CH, 200.0f) == HAL_OK);
+  assert(g_mock_tim4.CCR4 == 2500U);
 
-  /* 5. Inverted mode test */
-  assert(Servo_Config180(SERVO_CH_1, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, true) == HAL_OK);
-  assert(Servo_SetAngle180(SERVO_CH_1, 0.0f) == HAL_OK);
-  assert(g_mock_tim3.CCR3 == 2500U);
-  assert(Servo_SetAngle180(SERVO_CH_1, 180.0f) == HAL_OK);
-  assert(g_mock_tim3.CCR3 == 500U);
+  /* 5. Continuous 360 #2 on TIM4_CH3 (SERVO_360_CH2 / PB8): verify independent speed */
+  assert(Servo_SetSpeed360(SERVO_360_CH2, 70.0f) == HAL_OK);
+  /* 70% of 500us = 350us -> 1500 + 350 = 1850 us */
+  assert(g_mock_tim4.CCR3 == 1850U);
+  assert(Servo_Stop(SERVO_360_CH2) == HAL_OK);
+  assert(g_mock_tim4.CCR3 == 1500U);
 
-  /* 6. Simulate R1 button toggle state machine */
+  /* 6. Inverted mode test on SERVO_CLAMP_CH */
+  assert(Servo_Config180(SERVO_CLAMP_CH, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, true) == HAL_OK);
+  assert(Servo_SetAngle180(SERVO_CLAMP_CH, 0.0f) == HAL_OK);
+  assert(g_mock_tim4.CCR4 == 2500U);
+  assert(Servo_SetAngle180(SERVO_CLAMP_CH, 180.0f) == HAL_OK);
+  assert(g_mock_tim4.CCR4 == 500U);
+  /* Restore normal polarity */
+  assert(Servo_Config180(SERVO_CLAMP_CH, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false) == HAL_OK);
+
+  /* 7. Simulate R1 button toggle state machine */
   bool clamp_closed = false;
   uint8_t prev_r1 = 0U;
   float angles[6];
