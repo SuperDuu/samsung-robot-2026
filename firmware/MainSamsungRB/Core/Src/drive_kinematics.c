@@ -433,24 +433,30 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     ctrl->rot_ramp_ticks = DRIVE_OMNI_HEADING_RAMP_TICKS;
     ctrl->heading_settled = false;
   }
-  float yaw_meas_deg = imu_ok ? (robot_yaw_deg + ctrl->heading_trim_deg) : 0.0f;
+  float yaw_meas_deg =
+      imu_ok ? Drive_WrapAngleDeg(robot_yaw_deg + ctrl->heading_trim_deg) : 0.0f;
   if (trim_release && imu_ok) {
-    ctrl->target_heading_deg = yaw_meas_deg;
-    ctrl->slew_heading_deg = yaw_meas_deg;
+    /* Dynamic IMU drift compensation on button release:
+     * Preserve the active target_heading setpoint (e.g. 0 deg), and absorb the trimmed
+     * physical rotation directly into heading_trim_deg so cardinal pad snaps (0, 90, 180, -90)
+     * maintain the new corrected reference rather than snapping back to the old drifted angle. */
+    ctrl->heading_trim_deg =
+        Drive_WrapAngleDeg(ctrl->target_heading_deg - robot_yaw_deg);
+    ctrl->slew_heading_deg = ctrl->target_heading_deg;
     ctrl->rot_ramp_ticks = DRIVE_OMNI_HEADING_RAMP_TICKS;
     ctrl->heading_settled = false;
   }
   float target_w = 0.0f;
 
-  /* Update filtered yaw angular velocity (deg/s) at 100 Hz */
+  /* Update filtered yaw angular velocity (deg/s) at 100 Hz based on physical raw yaw */
   float yaw_delta = 0.0f;
   if (imu_ok) {
     if (ctrl->has_prev_yaw) {
-      yaw_delta = Drive_WrapAngleDeg(yaw_meas_deg - ctrl->prev_yaw_deg);
+      yaw_delta = Drive_WrapAngleDeg(robot_yaw_deg - ctrl->prev_yaw_deg);
     } else {
       ctrl->has_prev_yaw = true;
     }
-    ctrl->prev_yaw_deg = yaw_meas_deg;
+    ctrl->prev_yaw_deg = robot_yaw_deg;
   } else {
     ctrl->has_prev_yaw = false;
   }
@@ -463,8 +469,11 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     /* Fine yaw trim: L2 rotates LEFT (-rot_dir * 10%), R2 rotates RIGHT (+rot_dir * 10%) at ~20 RPM */
     target_w = l2 ? (-rot_dir * DRIVE_OMNI_TRIM_ROT_PCT)
                   : (+rot_dir * DRIVE_OMNI_TRIM_ROT_PCT);
-    ctrl->target_heading_deg = yaw_meas_deg;
-    ctrl->slew_heading_deg = yaw_meas_deg;
+    if (imu_ok) {
+      ctrl->heading_trim_deg =
+          Drive_WrapAngleDeg(ctrl->target_heading_deg - robot_yaw_deg);
+      ctrl->slew_heading_deg = ctrl->target_heading_deg;
+    }
     ctrl->heading_settled = false;
     ctrl->rot_ramp_ticks = DRIVE_OMNI_HEADING_RAMP_TICKS;
     ctrl->omega_fb_pct = target_w;
