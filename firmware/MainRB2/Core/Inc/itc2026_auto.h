@@ -20,7 +20,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
-#define ITC_BASE_RUN_RPMX10            1800  /* Nominal circular track cruise speed */
+#define ITC_BASE_RUN_RPMX10            1500  /* Nominal circular track cruise speed */
 #define ITC_EXIT_BOX_RPMX10            1400  /* Start-box exit cruise speed */
 #define ITC_EXIT_BOX_TIMEOUT_MS        2500U /* Max ms searching for track line from Start Box */
 #define ITC_EXIT_HEADING_KP_RPMX10     15    /* Heading hold gain while exiting Start Box */

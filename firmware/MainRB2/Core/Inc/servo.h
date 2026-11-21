@@ -36,8 +36,8 @@ extern "C" {
 typedef enum
 {
   SERVO_CH_1 = 0U, /* PB0  - TIM3_CH3  (J2)  */
-  SERVO_CH_2 = 1U, /* PB1  - TIM3_CH4  (J34) */
-  SERVO_CH_3 = 2U, /* Reserved: PB14 (J35) is BAUMER_INPUT */
+  SERVO_CH_2 = 1U, /* Reserved: PB1 (J34) is BAUMER_INPUT */
+  SERVO_CH_3 = 2U, /* Unused: PB14 (J35) */
   SERVO_CH_4 = 3U, /* PB15 - TIM12_CH2 (J36) */
   SERVO_CH_5 = 4U, /* PB8  - TIM4_CH3  (J37) */
   SERVO_CH_6 = 5U, /* PB9  - TIM4_CH4  (J38) */

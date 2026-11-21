@@ -145,14 +145,16 @@ void MainRB2_ClearWheelFaults(void);
 #define MH_RST_GPIO_Port GPIOC
 #define MH_DC_Pin GPIO_PIN_5
 #define MH_DC_GPIO_Port GPIOC
+#define AUTONICS_INPUT_Pin GPIO_PIN_0
+#define AUTONICS_INPUT_GPIO_Port GPIOB
+#define BAUMER_INPUT_Pin GPIO_PIN_1
+#define BAUMER_INPUT_GPIO_Port GPIOB
 #define L11_Pin GPIO_PIN_2
 #define L11_GPIO_Port GPIOB
 #define SW1_Pin GPIO_PIN_12
 #define SW1_GPIO_Port GPIOB
 #define LS4_Pin GPIO_PIN_13
 #define LS4_GPIO_Port GPIOB
-#define BAUMER_INPUT_Pin GPIO_PIN_14
-#define BAUMER_INPUT_GPIO_Port GPIOB
 #define LS3_Pin GPIO_PIN_6
 #define LS3_GPIO_Port GPIOC
 #define LS2_Pin GPIO_PIN_7
@@ -175,6 +177,8 @@ void MainRB2_ClearWheelFaults(void);
 #define L5_GPIO_Port GPIOB
 #define L4_Pin GPIO_PIN_7
 #define L4_GPIO_Port GPIOB
+#define OMRON_INPUT_Pin GPIO_PIN_9
+#define OMRON_INPUT_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

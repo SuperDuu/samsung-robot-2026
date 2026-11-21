@@ -2,7 +2,7 @@
   ******************************************************************************
   * @file    servo.c
   * @brief   2-mode Servo driver (0-270 deg positional & 360 deg continuous speed)
-  *          for the PWM outputs on MainRB2 (TIM3 CH3/4, TIM12 CH2, TIM4 CH3/4).
+  *          for the PWM outputs on MainRB2 (TIM3 CH3, TIM12 CH2, TIM4 CH3/4).
   ******************************************************************************
   */
 
@@ -77,18 +77,14 @@ HAL_StatusTypeDef Servo_Init(TIM_HandleTypeDef *htim3,
                              TIM_HandleTypeDef *htim4,
                              TIM_HandleTypeDef *htim12)
 {
+  (void)htim3;
   memset(&s_servo, 0, sizeof(s_servo));
 
-  s_servo.hw[SERVO_CH_1].htim   = htim3;
-  s_servo.hw[SERVO_CH_1].tim_ch = TIM_CHANNEL_3; /* PB0 */
-  s_servo.hw[SERVO_CH_2].htim   = htim3;
-  s_servo.hw[SERVO_CH_2].tim_ch = TIM_CHANNEL_4; /* PB1 */
+  /* PB0 (AUTONICS_INPUT), PB1 (BAUMER_INPUT), PB9 (OMRON_INPUT) are dedicated sensor inputs */
   s_servo.hw[SERVO_CH_4].htim   = htim12;
   s_servo.hw[SERVO_CH_4].tim_ch = TIM_CHANNEL_2; /* PB15 */
   s_servo.hw[SERVO_CH_5].htim   = htim4;
   s_servo.hw[SERVO_CH_5].tim_ch = TIM_CHANNEL_3; /* PB8 */
-  s_servo.hw[SERVO_CH_6].htim   = htim4;
-  s_servo.hw[SERVO_CH_6].tim_ch = TIM_CHANNEL_4; /* PB9 */
 
   for (uint8_t i = 0U; i < (uint8_t)SERVO_NUM_CHANNELS; i++)
   {

@@ -33,6 +33,7 @@
 #include "rs485_bus.h"
 #include "servo.h"
 #include "tof_vl53l1x.h"
+#include <math.h>
 
 /* USER CODE END Includes */
 
@@ -66,6 +67,17 @@ typedef enum {
   LINE_CAL_SAVE_FAILED
 } LineCalStatus_t;
 
+typedef enum {
+  TRACK_FSM_CRUISE = 0U,       /* Chay line binh thuong o toc do dinh muc */
+  TRACK_FSM_REVERSE_SWEEP,     /* Nhan SW1: Lui thang -100 RPM cho den khi mat 8..4 va 9..12 deu quet qua line */
+  TRACK_FSM_TURN_CW_30,        /* Xoay phai 30 do (CW) bang IMU */
+  TRACK_FSM_BAUMER_BRAKING,    /* BAUMER phat hien -> phanh cung 150ms de xe dung han va boc lo do lech */
+  TRACK_FSM_BAUMER_ALIGNING,   /* Sau khi dung han -> xoay tai cho nan dung goc IMU */
+  TRACK_FSM_OMRON_WAIT_2S,     /* OMRON phat hien khi chay tien -> dung lai cho 2 giay */
+  TRACK_FSM_BAUMER_STRUCK,     /* Da nan dung goc -> khoa banh va dap servo xuong 240 do theo MCP */
+  TRACK_FSM_CANCELLED          /* Bi huy boi estop hoac nut bam SW1 */
+} TrackFsm_t;
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -77,14 +89,28 @@ typedef enum {
 #define STRAIGHT_TEST_DURATION_MS 1000U
 #define STRAIGHT_TEST_MAX_RPMX10 1000
 #define FRONT_LINE_SWEEP_TIMEOUT_MS 100U
-#define FRONT_LINE_CRUISE_RPMX10 600
+#define FRONT_LINE_CRUISE_RPMX10 1500
 #define LINE_CAL_STABLE_SAMPLES 25U /* 250 ms at the 10 ms control tick */
 #define LINE_CAL_STABILITY_ADC 150
 #define LINE_CAL_SURFACE_TIMEOUT_MS 60000U
 #define SW2_CAL_HOLD_MS 800U
-#define BAUMER_ACTIVE_HOLD_MS 4000U
 #define BAUMER_SERVO_IDLE_DEG 110.0f
 #define BAUMER_SERVO_ACTIVE_DEG 240.0f
+#define BAUMER_SERVO_RAMP_MS 800U        /* Thoi gian ramp servo theo thuat toan MCP (800 ms - dap em, nhe nhang) */
+#define BAUMER_BRAKE_SETTLE_MS 150U      /* Thoi gian phanh dung han truoc khi bat dau nan goc (150 ms) */
+#define BAUMER_ALIGN_TOLERANCE_DEG 0.5f  /* Dung sai goc de coi la da nan dung (do) */
+#define BAUMER_ALIGN_MIN_RPMX10 50       /* Toc do xoay nan goc toi thieu de thang ma sat san (5 RPM) */
+#define BAUMER_ALIGN_MAX_RPMX10 250      /* Toc do xoay nan goc toi da (25 RPM) */
+#define BAUMER_ALIGN_TIMEOUT_MS 1200U    /* Timeout an toan nan goc (1.2 giay) */
+#define OMRON_CONFIRM_WAIT_MS 2000U      /* Wait 2s before checking if OMRON is still active */
+#define REVERSE_SWEEP_RPMX10 -2000       /* Toc do lui thang quet line (-200 RPM - tang gap 2) */
+#define REVERSE_SWEEP_REAR_MASK 0x00F8U  /* Mat line sau IN8..IN4 (kenh 7..3) */
+#define REVERSE_SWEEP_FRONT_MASK 0x0F00U /* Mat line truoc IN9..IN12 (kenh 8..11) */
+#define TURN_CW_30_DEG 30.0f             /* Goc xoay CW (30 do) */
+#define TURN_CW_TOLERANCE_DEG 1.0f       /* Dung sai goc xoay (do) */
+#define TURN_CW_MIN_RPMX10 100           /* Toc do xoay toi thieu (10 RPM - manh gap 2) */
+#define TURN_CW_MAX_RPMX10 400           /* Toc do xoay toi da (40 RPM - manh gap 2) */
+#define TURN_CW_TIMEOUT_MS 2000U         /* Timeout quay an toan (2 giay) */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -101,7 +127,6 @@ I2C_HandleTypeDef hi2c3;
 
 SPI_HandleTypeDef hspi1;
 
-TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 TIM_HandleTypeDef htim7;
 TIM_HandleTypeDef htim12;
@@ -172,7 +197,26 @@ static bool g_pending_sw2_cal_edge = false;
 static bool g_sw2_long_handled = false;
 static float g_prev_arm_deg = -1.0f;
 volatile float g_servo_ch4_angle_deg = 0.0f; /* Commanded T12C2 angle */
-volatile bool g_baumer_active = false; /* True when PB14 is high */
+volatile uint32_t g_baumer_servo_ramp_ms = BAUMER_SERVO_RAMP_MS;    /* Thoi gian ramp MCP (ms) - live-tunable */
+volatile float g_baumer_servo_active_deg = BAUMER_SERVO_ACTIVE_DEG; /* Goc dap active (do) - live-tunable */
+volatile float g_baumer_servo_idle_deg = BAUMER_SERVO_IDLE_DEG;     /* Goc nghi idle (do) - live-tunable */
+volatile bool g_autonics_active = false; /* True when AUTONICS_INPUT (PB0) is high */
+volatile bool g_baumer_active = false;   /* True when BAUMER_INPUT (PB1) is high */
+volatile bool g_omron_active = false;    /* True when OMRON_INPUT (PB9) is high */
+volatile float g_baumer_yaw_at_stop_deg = NAN;
+static TrackFsm_t g_track_fsm = TRACK_FSM_CRUISE;
+static uint32_t g_baumer_brake_start_ms = 0U;
+static uint32_t g_baumer_align_start_ms = 0U;
+static uint32_t g_baumer_struck_ms = 0U;
+static uint32_t g_omron_wait_start_ms = 0U;
+static uint8_t g_baumer_aligned_cycles = 0U;
+static int8_t g_line_direction = +1; /* +1 = Forward (front line), -1 = Reverse (rear line) */
+static bool g_omron_reversed = false;
+static uint16_t g_sweep_seen_mask = 0U;
+static Drive_StraightState_t g_reverse_straight = {0};
+static float g_turn_cw_target_yaw_deg = 0.0f;
+static uint8_t g_turn_cw_aligned_cycles = 0U;
+static uint32_t g_turn_cw_start_ms = 0U;
 volatile struct {
   uint8_t enable; /* Debugger request; status reports whether it was accepted. */
   uint8_t node_id;
@@ -207,7 +251,6 @@ static void MX_USART1_UART_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_UART4_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
-static void MX_TIM3_Init(void);
 static void MX_TIM12_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_TIM7_Init(void);
@@ -483,21 +526,107 @@ static void main_drive_front_line(int16_t rpm_x10, uint32_t now_ms,
                             modes, targets);
 }
 
-static float main_baumer_servo_target_deg(uint32_t now_ms) {
-  static uint32_t active_since_ms = 0U;
-  static bool was_active = false;
-
-  bool active = HAL_GPIO_ReadPin(BAUMER_INPUT_GPIO_Port, BAUMER_INPUT_Pin) ==
-                GPIO_PIN_SET;
-  if (active && !was_active) {
-    active_since_ms = now_ms;
+static float main_baumer_yaw_deg(void) {
+  if (!g_imu.connected || !g_imu.healthy ||
+      (uint32_t)(HAL_GetTick() - g_imu.last_ok_ms) > STRAIGHT_IMU_FRESH_MS) {
+    return NAN;
   }
-  was_active = active;
-  g_baumer_active = active;
+  return g_imu.yaw;
+}
 
-  bool held = active &&
-              (uint32_t)(now_ms - active_since_ms) >= BAUMER_ACTIVE_HOLD_MS;
-  return held ? BAUMER_SERVO_ACTIVE_DEG : BAUMER_SERVO_IDLE_DEG;
+static float main_mcp_servo_ramp(float start_deg, float target_deg, uint32_t elapsed_ms, uint32_t duration_ms) {
+  if ((duration_ms == 0U) || (elapsed_ms >= duration_ms)) {
+    return target_deg;
+  }
+  /* Minimum Jerk / Minimum Crack Polynomial (MCP): s(tau) = 10*tau^3 - 15*tau^4 + 6*tau^5 */
+  float tau = (float)elapsed_ms / (float)duration_ms;
+  float tau3 = tau * tau * tau;
+  float s = tau3 * (10.0f + tau * (-15.0f + 6.0f * tau));
+  return start_deg + (target_deg - start_deg) * s;
+}
+
+static int16_t main_calc_eff_line_rpm(int16_t base_rpm, uint32_t now_ms) {
+  (void)now_ms;
+  return base_rpm;
+}
+
+static void main_update_track_sensors(uint32_t now_ms) {
+  g_autonics_active = (HAL_GPIO_ReadPin(AUTONICS_INPUT_GPIO_Port, AUTONICS_INPUT_Pin) == GPIO_PIN_SET);
+  g_baumer_active   = (HAL_GPIO_ReadPin(BAUMER_INPUT_GPIO_Port, BAUMER_INPUT_Pin) == GPIO_PIN_SET);
+  g_omron_active    = (HAL_GPIO_ReadPin(OMRON_INPUT_GPIO_Port, OMRON_INPUT_Pin) == GPIO_PIN_SET);
+
+  if ((g_drive_mode != MAINRB2_DRIVE_LINE_FOLLOW) || g_estop_latched) {
+    return;
+  }
+
+  switch (g_track_fsm) {
+  case TRACK_FSM_REVERSE_SWEEP:
+  case TRACK_FSM_TURN_CW_30:
+    /* Trong luc lui quet line va quay 30 do CW, chua xu ly Baumer/Omron */
+    break;
+
+  case TRACK_FSM_CRUISE:
+    /* Khi BAUMER bat duoc -> ghi lai goc IMU ngay va bat dau phanh dung xe 150ms */
+    if (g_baumer_active) {
+      g_baumer_yaw_at_stop_deg = main_baumer_yaw_deg();
+      g_baumer_brake_start_ms = now_ms;
+      g_baumer_aligned_cycles = 0U;
+      if (isfinite(g_baumer_yaw_at_stop_deg)) {
+        g_track_fsm = TRACK_FSM_BAUMER_BRAKING;
+      } else {
+        /* Neu IMU khong hop le -> dap servo luon */
+        g_track_fsm = TRACK_FSM_BAUMER_STRUCK;
+        g_baumer_struck_ms = now_ms;
+      }
+      break;
+    }
+
+    /* Khi dang chay line tien ma OMRON bat duoc -> dung xe cho 2 giay */
+    if (g_omron_active && (g_line_direction > 0) && !g_omron_reversed) {
+      g_track_fsm = TRACK_FSM_OMRON_WAIT_2S;
+      g_omron_wait_start_ms = now_ms;
+      break;
+    }
+    break;
+
+  case TRACK_FSM_BAUMER_BRAKING:
+    /* Cho xe phanh dung han trong 150ms de quan tinh boc lo do lech huong thuc te */
+    if ((uint32_t)(now_ms - g_baumer_brake_start_ms) >= BAUMER_BRAKE_SETTLE_MS) {
+      g_track_fsm = TRACK_FSM_BAUMER_ALIGNING;
+      g_baumer_align_start_ms = now_ms;
+      g_baumer_aligned_cycles = 0U;
+    }
+    break;
+
+  case TRACK_FSM_BAUMER_ALIGNING:
+    /* Duoc xu ly trong vong lap dieu khien 10ms (xoay vi sai tai cho nan dung goc) */
+    break;
+
+  case TRACK_FSM_OMRON_WAIT_2S:
+    /* Dang dung xe cho 2 giay */
+    if ((uint32_t)(now_ms - g_omron_wait_start_ms) >= OMRON_CONFIRM_WAIT_MS) {
+      if (g_omron_active) {
+        /* Sau 2s ma van con tin hieu -> do line dang sau, di lui theo line */
+        g_line_direction = -1;
+        g_line_base_rpm_x10 = -FRONT_LINE_CRUISE_RPMX10;
+        g_omron_reversed = true;
+        g_track_fsm = TRACK_FSM_CRUISE; /* Bat dau bam line sau lui binh thuong */
+        Drive_LineFollowReset(&g_line_state);
+      } else {
+        /* Neu sau 2s da het tin hieu OMRON -> tiep tuc chay tien */
+        g_track_fsm = TRACK_FSM_CRUISE;
+        Drive_LineFollowReset(&g_line_state);
+      }
+    }
+    break;
+
+  case TRACK_FSM_BAUMER_STRUCK:
+    /* Da dung va dap servo */
+    break;
+
+  default:
+    break;
+  }
 }
 
 static void main_on_rs485_rx(RS485_Bus_t *bus, const RS485_Frame_t *frame,
@@ -537,11 +666,26 @@ void MainRB2_EnableLineFollow(bool enable, int16_t base_rpm_x10) {
       Drive_LineFollowReset(&g_line_state);
       g_line_straight = (Drive_StraightState_t){0};
     }
+    g_line_direction = -1;
+    g_omron_reversed = false;
+    g_sweep_seen_mask = 0U;
+    g_reverse_straight = (Drive_StraightState_t){0};
+    g_turn_cw_aligned_cycles = 0U;
+    g_turn_cw_start_ms = 0U;
+    g_baumer_aligned_cycles = 0U;
+    g_track_fsm = TRACK_FSM_REVERSE_SWEEP;
     g_line_base_rpm_x10 = base_rpm_x10;
     g_drive_mode = MAINRB2_DRIVE_LINE_FOLLOW;
   } else {
     g_drive_mode = MAINRB2_DRIVE_IDLE;
     g_line_base_rpm_x10 = 0;
+    g_line_direction = +1;
+    g_omron_reversed = false;
+    g_sweep_seen_mask = 0U;
+    g_reverse_straight = (Drive_StraightState_t){0};
+    g_track_fsm = TRACK_FSM_CRUISE;
+    g_baumer_aligned_cycles = 0U;
+    g_turn_cw_aligned_cycles = 0U;
     g_cmd_linear_rpm_x10 = 0;
     g_cmd_angular_rpm_x10 = 0;
     Drive_LineFollowReset(&g_line_state);
@@ -552,6 +696,7 @@ void MainRB2_EnableLineFollow(bool enable, int16_t base_rpm_x10) {
 void MainRB2_SetEstop(bool estop) {
   g_estop_latched = estop;
   if (estop) {
+    g_track_fsm = TRACK_FSM_CANCELLED;
     g_cmd_linear_rpm_x10 = 0;
     g_cmd_angular_rpm_x10 = 0;
     Drive_LineFollowReset(&g_line_state);
@@ -603,17 +748,15 @@ int main(void)
   MX_USART2_UART_Init();
   MX_UART4_Init();
   MX_USB_OTG_FS_PCD_Init();
-  MX_TIM3_Init();
   MX_TIM12_Init();
   MX_TIM4_Init();
   MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
-  if (Servo_Init(&htim3, &htim4, &htim12) != HAL_OK) {
+  if (Servo_Init(NULL, &htim4, &htim12) != HAL_OK) {
     Error_Handler();
   }
 
-  /* Start the hold timer only after the main loop begins sampling PB14. */
-  float servo_ch4_applied_deg = BAUMER_SERVO_IDLE_DEG;
+  float servo_ch4_applied_deg = g_baumer_servo_idle_deg;
   if (Servo_Config270(SERVO_CH_4, SERVO_PWM_MIN_US,
                       SERVO_PWM_MAX_US, false) != HAL_OK ||
       Servo_SetAngle270(SERVO_CH_4, servo_ch4_applied_deg) != HAL_OK) {
@@ -648,7 +791,6 @@ int main(void)
 
   /* CH1 is the Load Port trigger servo. */
   (void)Servo_Config270(SERVO_CH_1, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false);
-  (void)Servo_Config270(SERVO_CH_2, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false);
   (void)Servo_Config360(SERVO_CH_5, SERVO_PWM_NEUTRAL_US,
                         SERVO_360_DEFAULT_HALF_SPAN_US,
                         SERVO_DEFAULT_DEADBAND_PCT, false);
@@ -688,6 +830,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+//  while(1){}
   while (1) {
     /* USER CODE END WHILE */
 
@@ -695,12 +838,7 @@ int main(void)
     uint32_t now_ms = HAL_GetTick();
     RF_Frame_t rx_frame;
 
-    float servo_ch4_requested_deg = main_baumer_servo_target_deg(now_ms);
-    if (servo_ch4_requested_deg != servo_ch4_applied_deg &&
-        Servo_SetAngle270(SERVO_CH_4, servo_ch4_requested_deg) == HAL_OK) {
-      servo_ch4_applied_deg = servo_ch4_requested_deg;
-    }
-    g_servo_ch4_angle_deg = servo_ch4_applied_deg;
+    main_update_track_sensors(now_ms);
 
     /* 1. Drain UART4 circular DMA RX; strictly accepts RF_NODE_MANUAL, blocks
      * RF_NODE_TDK */
@@ -735,6 +873,7 @@ int main(void)
     if (Buttons_ConsumePressed(BTN_SW1)) {
       if (g_drive_mode == MAINRB2_DRIVE_LINE_FOLLOW) {
         MainRB2_EnableLineFollow(false, 0);
+        g_track_fsm = TRACK_FSM_CANCELLED;
         if (g_auto.state == ITC_STATE_IDLE) {
           g_drive_mode = MAINRB2_DRIVE_AUTO;
         }
@@ -825,6 +964,27 @@ int main(void)
      */
     if ((uint32_t)(now_ms - g_last_rs485_tx_ms) >= RS485_TX_PERIOD_MS) {
       g_last_rs485_tx_ms = now_ms;
+      main_update_track_sensors(now_ms);
+      bool line_holding = (g_track_fsm == TRACK_FSM_BAUMER_BRAKING) ||
+                          (g_track_fsm == TRACK_FSM_BAUMER_STRUCK) ||
+                          (g_track_fsm == TRACK_FSM_OMRON_WAIT_2S) ||
+                          (g_track_fsm == TRACK_FSM_CANCELLED);
+      float servo_ch4_requested_deg;
+      if (g_track_fsm == TRACK_FSM_BAUMER_STRUCK) {
+        uint32_t elapsed_struck = (uint32_t)(now_ms - g_baumer_struck_ms);
+        servo_ch4_requested_deg = main_mcp_servo_ramp(g_baumer_servo_idle_deg, g_baumer_servo_active_deg,
+                                                      elapsed_struck, g_baumer_servo_ramp_ms);
+      } else {
+        servo_ch4_requested_deg = g_baumer_servo_idle_deg;
+      }
+      if ((fabsf(servo_ch4_requested_deg - servo_ch4_applied_deg) >= 0.05f ||
+           servo_ch4_requested_deg == g_baumer_servo_active_deg ||
+           servo_ch4_requested_deg == g_baumer_servo_idle_deg) &&
+          Servo_SetAngle270(SERVO_CH_4, servo_ch4_requested_deg) == HAL_OK) {
+        servo_ch4_applied_deg = servo_ch4_requested_deg;
+      }
+      g_servo_ch4_angle_deg = servo_ch4_applied_deg;
+
       bool line_cal_active = main_step_line_calibration(now_ms);
       bool manual_straight = (g_drive_mode == MAINRB2_DRIVE_MANUAL_VEL) &&
                              (g_cmd_angular_rpm_x10 == 0);
@@ -835,7 +995,90 @@ int main(void)
       uint8_t modes[DRIVE_DIFF_WHEEL_COUNT] = {0};
       int16_t targets[DRIVE_DIFF_WHEEL_COUNT] = {0};
 
-      if (g_drive_mode == MAINRB2_DRIVE_AUTO) {
+      if (line_holding) {
+        Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched,
+                          modes, targets);
+      } else if (g_track_fsm == TRACK_FSM_REVERSE_SWEEP) {
+        /* Tich luy cac mat line da tung bat duoc tren ca 2 cum mat */
+        g_sweep_seen_mask |= cd4067_data.active_mask;
+
+        bool rear_swept  = ((g_sweep_seen_mask & REVERSE_SWEEP_REAR_MASK)  == REVERSE_SWEEP_REAR_MASK);
+        bool front_swept = ((g_sweep_seen_mask & REVERSE_SWEEP_FRONT_MASK) == REVERSE_SWEEP_FRONT_MASK);
+
+        if (rear_swept && front_swept) {
+          /* Da quet qua ca mat 8..4 va 9..12 -> luu goc yaw va chuyen sang quay CW 30 do */
+          float cur_yaw = main_baumer_yaw_deg();
+          if (isfinite(cur_yaw)) {
+            g_turn_cw_target_yaw_deg = Drive_WrapAngleDeg(cur_yaw - TURN_CW_30_DEG);
+          } else {
+            g_turn_cw_target_yaw_deg = 0.0f;
+          }
+          g_turn_cw_aligned_cycles = 0U;
+          g_turn_cw_start_ms = now_ms;
+          g_track_fsm = TRACK_FSM_TURN_CW_30;
+          Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+        } else {
+          /* Lui thang -100 RPM dung IMU heading lock */
+          (void)main_straight_step(&g_reverse_straight, REVERSE_SWEEP_RPMX10,
+                                   DRIVE_DEFAULT_MAX_RPMX10, modes, targets);
+        }
+      } else if (g_track_fsm == TRACK_FSM_TURN_CW_30) {
+        float cur_yaw = main_baumer_yaw_deg();
+        float yaw_err = isfinite(cur_yaw) ? Drive_WrapAngleDeg(g_turn_cw_target_yaw_deg - cur_yaw) : 0.0f;
+
+        if (fabsf(yaw_err) <= TURN_CW_TOLERANCE_DEG) {
+          g_turn_cw_aligned_cycles++;
+        } else {
+          g_turn_cw_aligned_cycles = 0U;
+        }
+
+        bool aligned = (g_turn_cw_aligned_cycles >= 3U);
+        bool timeout = ((uint32_t)(now_ms - g_turn_cw_start_ms) >= TURN_CW_TIMEOUT_MS);
+
+        if (aligned || timeout) {
+          g_turn_cw_aligned_cycles = 0U;
+          g_line_direction = +1;
+          g_omron_reversed = false;
+          g_line_base_rpm_x10 = FRONT_LINE_CRUISE_RPMX10;
+          Drive_LineFollowReset(&g_line_state);
+          g_line_straight = (Drive_StraightState_t){0};
+          g_track_fsm = TRACK_FSM_CRUISE;
+          Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+        } else {
+          /* Quay phai CW tai cho (manh gap 2 lan) */
+          float ang = yaw_err * 80.0f;
+          if (ang > 0.0f && ang < (float)TURN_CW_MIN_RPMX10) ang = (float)TURN_CW_MIN_RPMX10;
+          else if (ang < 0.0f && ang > -(float)TURN_CW_MIN_RPMX10) ang = -(float)TURN_CW_MIN_RPMX10;
+          if (ang > (float)TURN_CW_MAX_RPMX10) ang = (float)TURN_CW_MAX_RPMX10;
+          else if (ang < -(float)TURN_CW_MAX_RPMX10) ang = -(float)TURN_CW_MAX_RPMX10;
+          Drive_DiffCompute(0, (int16_t)ang, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+        }
+      } else if (g_track_fsm == TRACK_FSM_BAUMER_ALIGNING) {
+        float cur_yaw = main_baumer_yaw_deg();
+        float yaw_err = isfinite(cur_yaw) ? Drive_WrapAngleDeg(g_baumer_yaw_at_stop_deg - cur_yaw) : 0.0f;
+
+        if (fabsf(yaw_err) <= BAUMER_ALIGN_TOLERANCE_DEG) {
+          g_baumer_aligned_cycles++;
+        } else {
+          g_baumer_aligned_cycles = 0U;
+        }
+
+        bool aligned = (g_baumer_aligned_cycles >= 3U);
+        bool timeout = ((uint32_t)(now_ms - g_baumer_align_start_ms) >= BAUMER_ALIGN_TIMEOUT_MS);
+        if (aligned || timeout) {
+          g_baumer_aligned_cycles = 0U;
+          g_track_fsm = TRACK_FSM_BAUMER_STRUCK;
+          g_baumer_struck_ms = now_ms;
+          Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+        } else {
+          float ang = yaw_err * 50.0f;
+          if (ang > 0.0f && ang < (float)BAUMER_ALIGN_MIN_RPMX10) ang = (float)BAUMER_ALIGN_MIN_RPMX10;
+          else if (ang < 0.0f && ang > -(float)BAUMER_ALIGN_MIN_RPMX10) ang = -(float)BAUMER_ALIGN_MIN_RPMX10;
+          if (ang > (float)BAUMER_ALIGN_MAX_RPMX10) ang = (float)BAUMER_ALIGN_MAX_RPMX10;
+          else if (ang < -(float)BAUMER_ALIGN_MAX_RPMX10) ang = -(float)BAUMER_ALIGN_MAX_RPMX10;
+          Drive_DiffCompute(0, (int16_t)ang, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+        }
+      } else if (g_drive_mode == MAINRB2_DRIVE_AUTO) {
         uint16_t f_mm = TOF_INVALID_DISTANCE_MM;
         uint16_t r_mm = TOF_INVALID_DISTANCE_MM;
         bool f_blk = ToF_IsDirectionBlocked(&g_tof, true, ITC_TOF_STOP_MM,
@@ -906,11 +1149,13 @@ int main(void)
         targets[1] = g_auto_out.wheel_targets[1];
       } else if ((g_drive_mode == MAINRB2_DRIVE_LINE_FOLLOW) &&
                  (g_line_base_rpm_x10 >= 0)) {
-        main_drive_front_line(g_line_base_rpm_x10, now_ms, modes, targets);
+        int16_t eff_rpm = main_calc_eff_line_rpm(g_line_base_rpm_x10, now_ms);
+        main_drive_front_line(eff_rpm, now_ms, modes, targets);
       } else if (g_drive_mode == MAINRB2_DRIVE_LINE_FOLLOW) {
+        int16_t eff_rpm = main_calc_eff_line_rpm(g_line_base_rpm_x10, now_ms);
         Drive_LineFollowDualBarStep(
             &g_line_state, &g_line_gains, CD4067_IsCalibrated(),
-            g_line_base_rpm_x10, g_front_mask, cd4067_data.front_count,
+            eff_rpm, g_front_mask, cd4067_data.front_count,
             CD4067_GetFrontCentroidX10(), g_rear_mask, cd4067_data.rear_count,
             CD4067_GetRearCentroidX10(), now_ms, g_estop_latched, modes,
             targets);
@@ -926,7 +1171,7 @@ int main(void)
                           modes, targets);
       }
 
-      if (!line_cal_active) {
+      if (!line_cal_active && !line_holding) {
         main_apply_pidboard_test(now_ms, modes, targets);
       }
 
@@ -972,7 +1217,9 @@ int main(void)
         s_pid_last_sync_ms = now_ms;
       }
 
-      if (s_pid_cfg_stage == 2U) {
+      bool stop_priority = line_holding || g_estop_latched || (g_track_fsm == TRACK_FSM_BAUMER_ALIGNING) ||
+                           (g_track_fsm == TRACK_FSM_REVERSE_SWEEP) || (g_track_fsm == TRACK_FSM_TURN_CW_30);
+      if (!stop_priority && (s_pid_cfg_stage == 2U)) {
         RS485_CfgCmd_t cfg = {0};
         cfg.subcmd = (uint8_t)RS485_CFG_SET_VEL_KP_M;
         cfg.value = g_pidboard_vel_kp_m;
@@ -981,7 +1228,7 @@ int main(void)
           s_sent_kp_m = g_pidboard_vel_kp_m;
           s_pid_cfg_stage = 1U;
         }
-      } else if (s_pid_cfg_stage == 1U) {
+      } else if (!stop_priority && (s_pid_cfg_stage == 1U)) {
         RS485_CfgCmd_t cfg = {0};
         cfg.subcmd = (uint8_t)RS485_CFG_SET_VEL_KI_M;
         cfg.value = g_pidboard_vel_ki_m;
@@ -1032,6 +1279,7 @@ int main(void)
     g_debug.board.sw1 = Buttons_IsPressed(BTN_SW1) ? 1U : 0U;
     g_debug.board.sw2 = Buttons_IsPressed(BTN_SW2) ? 1U : 0U;
   }
+
   /* USER CODE END 3 */
 }
 
@@ -1239,59 +1487,6 @@ static void MX_SPI1_Init(void)
 }
 
 /**
-  * @brief TIM3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM3_Init(void)
-{
-
-  /* USER CODE BEGIN TIM3_Init 0 */
-
-  /* USER CODE END TIM3_Init 0 */
-
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
-
-  /* USER CODE BEGIN TIM3_Init 1 */
-
-  /* USER CODE END TIM3_Init 1 */
-  htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 83;
-  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 19999;
-  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM3_Init 2 */
-
-  /* USER CODE END TIM3_Init 2 */
-  HAL_TIM_MspPostInit(&htim3);
-
-}
-
-/**
   * @brief TIM4 Initialization Function
   * @param None
   * @retval None
@@ -1330,10 +1525,6 @@ static void MX_TIM4_Init(void)
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
   {
     Error_Handler();
   }
@@ -1660,6 +1851,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(MH_DC_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : AUTONICS_INPUT_Pin BAUMER_INPUT_Pin SW1_Pin OMRON_INPUT_Pin */
+  GPIO_InitStruct.Pin = AUTONICS_INPUT_Pin|BAUMER_INPUT_Pin|SW1_Pin|OMRON_INPUT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
   /*Configure GPIO pins : L11_Pin LS4_Pin L8_Pin L7_Pin
                            L6_Pin L5_Pin L4_Pin */
   GPIO_InitStruct.Pin = L11_Pin|LS4_Pin|L8_Pin|L7_Pin
@@ -1667,12 +1864,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : SW1_Pin BAUMER_INPUT_Pin */
-  GPIO_InitStruct.Pin = SW1_Pin|BAUMER_INPUT_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : SW2_Pin */
