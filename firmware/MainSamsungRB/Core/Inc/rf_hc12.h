@@ -76,6 +76,9 @@ typedef enum
 #define RF_MANUAL_FLAG_TDK_LINK    (1U << 0) /* Manual robot has live tdk RF link */
 #define RF_MANUAL_FLAG_SW1         (1U << 1) /* MainSamsungRB SW1 pressed */
 #define RF_MANUAL_FLAG_SW2         (1U << 2) /* MainSamsungRB SW2 pressed */
+#define RF_MANUAL_FLAG_TRIGGER_R2  (1U << 3) /* Operator pressed START / Button to trigger R2 */
+
+#define RF_AUTO_CMD_START          0x01U     /* Command byte: Start autonomous run on R2 */
 
 #define RF_PAYLOAD_TDK_LEN         9U
 #define RF_PAYLOAD_MANUAL_AUTO_LEN 14U

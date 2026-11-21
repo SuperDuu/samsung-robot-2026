@@ -37,7 +37,7 @@ extern "C" {
 
 #define DRIVE_OMNI_GEAR_COUNT            4U
 #define DRIVE_OMNI_DEFAULT_GEAR          0U      /* 33% default base speed tier (3x boost with L1 reaches 100%) */
-#define DRIVE_OMNI_CRAWL_PCT             15U     /* Precision crawl speed tuned by operator on field */
+#define DRIVE_OMNI_CRAWL_PCT             22U     /* Precision crawl speed tuned by operator on field */
 #define DRIVE_OMNI_TRIM_ROT_PCT          10.0f   /* 20 RPM fine yaw adjustment (10% of 2000 rpm_x10) */
 #define DRIVE_OMNI_BOOST_ROT_PCT         25.0f   /* 75 RPM fast yaw rotation when L1 boost is held (25% of 3000 rpm_x10) */
 #define DRIVE_OMNI_BOOST_OMEGA_MAX       85.0f   /* 85% maximum rotation cap during boosted turns */

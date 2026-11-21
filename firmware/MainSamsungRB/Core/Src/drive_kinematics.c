@@ -444,19 +444,12 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
   float yaw_meas_deg =
       imu_ok ? Drive_WrapAngleDeg(robot_yaw_deg + ctrl->heading_trim_deg) : 0.0f;
   if (trim_release && imu_ok) {
-    /* Dynamic IMU drift compensation on button release:
-     * When adjusting within fine drift window (|trim_diff| <= 30 deg), absorb the trimmed
-     * physical rotation directly into heading_trim_deg so cardinal pad snaps (0, 90, 180, -90)
-     * maintain the new corrected reference.
-     * When making large intentional turns (> 30 deg, e.g. turning 90 or 180 deg), update the
-     * active target_heading setpoint to held angle so field-centric coordinate frame is never inverted! */
-    float trim_diff =
-        Drive_WrapAngleDeg(ctrl->target_heading_deg - robot_yaw_deg);
-    if (fabsf(trim_diff) <= 30.0f) {
-      ctrl->heading_trim_deg = trim_diff;
-    } else {
-      ctrl->target_heading_deg = yaw_meas_deg;
-    }
+    /* Manual rotation button release:
+     * Lock active target_heading setpoint to current robot heading (yaw_meas_deg)
+     * so the robot immediately holds the newly turned heading without drifting.
+     * heading_trim_deg is NEVER modified during manual rotation so field-centric
+     * coordinate frame and cardinal pad snaps (0, 90, 180, -90) remain 100% true! */
+    ctrl->target_heading_deg = yaw_meas_deg;
     ctrl->slew_heading_deg = ctrl->target_heading_deg;
     ctrl->rot_ramp_ticks = DRIVE_OMNI_HEADING_RAMP_TICKS;
     ctrl->heading_settled = false;
@@ -487,13 +480,9 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     target_w = l2 ? (-rot_dir * trim_speed)
                   : (+rot_dir * trim_speed);
     if (imu_ok) {
-      float trim_diff =
-          Drive_WrapAngleDeg(ctrl->target_heading_deg - robot_yaw_deg);
-      if (fabsf(trim_diff) <= 30.0f) {
-        ctrl->heading_trim_deg = trim_diff;
-      } else {
-        ctrl->target_heading_deg = yaw_meas_deg;
-      }
+      /* Continuously track setpoint during intentional rotation so heading-hold
+       * loop does not fight manual turn, leaving heading_trim_deg intact. */
+      ctrl->target_heading_deg = yaw_meas_deg;
       ctrl->slew_heading_deg = ctrl->target_heading_deg;
     }
     ctrl->heading_settled = false;

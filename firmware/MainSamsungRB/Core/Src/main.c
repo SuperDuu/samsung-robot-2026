@@ -845,14 +845,10 @@ int main(void) {
         }
         s_prev_wheel_alive[i] = g_wheel_alive[i];
       }
-      bool dpad_micro_active = g_tdk_link_ok &&
-                               ((g_tdk_cmd.ps2_btn[0] == 16U) || (g_tdk_cmd.ps2_btn[0] == 32U) ||
-                                (g_tdk_cmd.ps2_btn[0] == 64U) || (g_tdk_cmd.ps2_btn[0] == 128U));
-      bool yaw_trim_active = g_tdk_link_ok &&
-                             (((g_tdk_cmd.ps2_btn[1] & DRIVE_PS2_B1_L2) != 0U) ||
-                              ((g_tdk_cmd.ps2_btn[1] & DRIVE_PS2_B1_R2) != 0U));
-      bool micro_active = dpad_micro_active || yaw_trim_active;
-      int32_t target_ki_m = micro_active ? 0 : g_pidboard_vel_ki_m;
+      /* Maintain full velocity Ki (2000 m-units) at all times so PidBoard integral term
+       * accumulates torque to overcome static friction at crawl/trim speeds.
+       * Prevents motor stalling, sluggish deadband, and driver overcurrent trips. */
+      int32_t target_ki_m = g_pidboard_vel_ki_m;
 
       bool idle_refresh_due =
           omni_wheels_stopped &&
@@ -893,7 +889,7 @@ int main(void) {
       }
     }
 
-    /* 6. Forward state to Autonomous Robot (MainRB2 = RF_NODE_AUTO) ONLY when
+    /* 6. Forward state to Autonomous Robot (MainRB2 = RF_NODE_AUTO) when
      * user presses START / Button on TDK */
     /* When no TDK data: robot stands still, HC-12 remains 100% silent in RX
      * listen mode (NO TX) */
@@ -903,12 +899,31 @@ int main(void) {
         g_tdk_link_ok && (((clean_btn0_auto & DRIVE_PS2_B0_START) != 0U) ||
                           ((g_tdk_cmd.ext_sw & RF_TDK_EXT_BUTTON_BIT) != 0U));
 
-    if (trigger_auto && ((uint32_t)(now_ms - g_last_auto_tx_ms) >= 100U)) {
+    static bool s_prev_trigger_auto = false;
+    static uint8_t s_auto_burst_cnt = 0U;
+    if (trigger_auto && !s_prev_trigger_auto) {
+      /* Rising edge of trigger: schedule a burst of 5 frames spaced 25 ms for 100% RF delivery */
+      s_auto_burst_cnt = 5U;
+    }
+    s_prev_trigger_auto = trigger_auto;
+
+    bool send_auto_frame = false;
+    if (s_auto_burst_cnt > 0U) {
+      if ((uint32_t)(now_ms - g_last_auto_tx_ms) >= 25U) {
+        send_auto_frame = true;
+        s_auto_burst_cnt--;
+      }
+    } else if (trigger_auto && ((uint32_t)(now_ms - g_last_auto_tx_ms) >= 80U)) {
+      send_auto_frame = true;
+    }
+
+    if (send_auto_frame) {
       g_last_auto_tx_ms = now_ms;
       RF_PayloadManualToAuto_t auto_msg = {0};
-      auto_msg.cmd = g_tdk_cmd.ext_sw;
+      auto_msg.cmd = RF_AUTO_CMD_START;
       auto_msg.mode = (uint8_t)CD4067_GetLedViewMode();
       auto_msg.flags = RF_MANUAL_FLAG_TDK_LINK |
+                       RF_MANUAL_FLAG_TRIGGER_R2 |
                        (Buttons_IsPressed(BTN_SW1) ? RF_MANUAL_FLAG_SW1 : 0U) |
                        (Buttons_IsPressed(BTN_SW2) ? RF_MANUAL_FLAG_SW2 : 0U);
       auto_msg.reserved = (uint8_t)((g_omni_ctrl.gear & 0x03U) |

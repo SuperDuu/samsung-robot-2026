@@ -515,21 +515,27 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
   assert(fabsf(fabsf(ctrl.omega_fb_pct) - DRIVE_OMNI_BOOST_ROT_PCT) < 0.01f);
   assert(abs(targets[0]) == 750); /* 75.0 RPM per wheel: 3.75x faster! */
 
-  /* Release L2: target_heading_deg remains at setpoint (0 deg), while heading_trim_deg absorbs offset */
+  /* Release L2: target_heading_deg locks to new physical angle (18 deg), while heading_trim_deg remains 0 */
   in.ps2_btn[1] = 0U;
   Drive_OmniCtrlStep(&ctrl, &in, false, 18.0f, true, 4000, modes, targets);
-  assert(fabsf(ctrl.target_heading_deg - 0.0f) < 0.01f);
-  assert(fabsf(ctrl.heading_trim_deg - (-18.0f)) < 0.01f);
+  assert(fabsf(ctrl.target_heading_deg - 18.0f) < 0.01f);
+  assert(fabsf(ctrl.heading_trim_deg - 0.0f) < 0.01f);
 
-  /* Pad snap test: pressing Triangle (0 deg) MUST NOT snap back to drifted raw 0 deg! */
+  /* Pad snap test: pressing Triangle (0 deg) snaps target_heading back to true 0 deg! */
   in.ps2_btn[1] = DRIVE_PS2_B1_TRIANGLE;
   Drive_OmniCtrlStep(&ctrl, &in, false, 18.0f, true, 4000, modes, targets);
   assert(fabsf(ctrl.target_heading_deg - 0.0f) < 0.01f);
+  assert(ctrl.omega_fb_pct < 0.0f); /* Active rotation back towards 0 deg */
+  /* Once robot returns to 0 deg, heading error settles */
+  in.ps2_btn[1] = 0U;
+  for (int step = 0; step < 60; step++) {
+    Drive_OmniCtrlStep(&ctrl, &in, false, 0.0f, true, 4000, modes, targets);
+  }
   assert(targets[0] == 0 && targets[1] == 0 && targets[2] == 0 && targets[3] == 0);
 
-  /* R2 rotates in opposite direction at 20 RPM */
+  /* R2 rotates in opposite direction at 20 RPM without corrupting trim */
   in.ps2_btn[1] = DRIVE_PS2_B1_R2;
-  Drive_OmniCtrlStep(&ctrl, &in, false, 18.0f, true, 4000, modes, targets);
+  Drive_OmniCtrlStep(&ctrl, &in, false, 0.0f, true, 4000, modes, targets);
   assert(fabsf(fabsf(ctrl.omega_fb_pct) - DRIVE_OMNI_TRIM_ROT_PCT) < 0.01f);
   assert(abs(targets[0]) == 200); /* 20.0 RPM per wheel */
   in.ps2_btn[1] = 0U;
@@ -796,9 +802,9 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
                          ttargets);
     }
     assert(trim_ctrl.active_speed_pct == DRIVE_OMNI_CRAWL_PCT);
-    /* Target RPM must be around 42 RPM (424 rpm_x10) for precision crawl (15% speed) */
+    /* Target RPM must be around 62 RPM (622 rpm_x10) for precision crawl (22% speed) */
     for (uint8_t w = 0U; w < 4U; w++) {
-      assert(abs(ttargets[w]) == 424); /* ~42.4 RPM */
+      assert(abs(ttargets[w]) == 622); /* ~62.2 RPM */
     }
 
     /* Re-enable field-centric for servo code isolation test */
@@ -1016,11 +1022,20 @@ static void test_itc2026_auto_fsm_and_rf_security(void) {
                     15U);
   assert(rf_man.stats.rx_ok_frames == 2U);
 
-  RF_PayloadManualToAuto_t man_msg = {.cmd = 1U};
+  RF_PayloadManualToAuto_t man_msg = {
+      .cmd = RF_AUTO_CMD_START,
+      .flags = RF_MANUAL_FLAG_TDK_LINK | RF_MANUAL_FLAG_TRIGGER_R2
+  };
   assert(RF_HC12_SendManualToAuto(&rf_man, RF_NODE_AUTO, &man_msg) == HAL_OK);
   RF_HC12_FeedBytes(&rf_auto, huart_tx_man.last_tx_buf,
                     huart_tx_man.last_tx_len, 20U);
   assert(rf_auto.stats.rx_ok_frames == 1U);
+  RF_Frame_t auto_rx_frame;
+  RF_PayloadManualToAuto_t auto_decoded = {0};
+  assert(RF_HC12_PopLatestFrame(&rf_auto, &auto_rx_frame) == true);
+  assert(RF_HC12_DecodeManualToAuto(&auto_rx_frame, &auto_decoded) == true);
+  assert(auto_decoded.cmd == RF_AUTO_CMD_START);
+  assert((auto_decoded.flags & RF_MANUAL_FLAG_TRIGGER_R2) != 0U);
 
   /* Autonomous ITC 2026 FSM full cycle */
   ITC_Auto_t fsm;
