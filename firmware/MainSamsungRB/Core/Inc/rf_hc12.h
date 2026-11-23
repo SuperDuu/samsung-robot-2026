@@ -78,6 +78,7 @@ typedef enum
 #define RF_MANUAL_FLAG_SW2         (1U << 2) /* MainSamsungRB SW2 pressed */
 #define RF_MANUAL_FLAG_TRIGGER_R2  (1U << 3) /* Operator pressed START / Button to trigger R2 */
 
+#define RF_AUTO_CMD_NONE           0x00U     /* No active command / idle / released */
 #define RF_AUTO_CMD_START          0x01U     /* Command byte: Start autonomous run on R2 */
 
 #define RF_PAYLOAD_TDK_LEN         9U
