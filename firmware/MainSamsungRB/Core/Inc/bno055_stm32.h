@@ -69,6 +69,7 @@ typedef struct
   uint32_t                   still_win_ms;
   float                      still_raw_deg;
   float                      yaw_bias_dps;
+  bool                       software_drift_comp; /* true = enable software ZRO drift estimator (default false) */
 } BNO055_IMU_t;
 
 extern I2C_HandleTypeDef *_bno055_i2c_port;

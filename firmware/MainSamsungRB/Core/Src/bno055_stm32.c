@@ -277,6 +277,7 @@ bool BNO055_IMU_InitWithMode(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c, bno055_
 
   memset(imu, 0, sizeof(*imu));
   imu->op_mode = (op_mode == BNO055_OPERATION_MODE_CONFIG) ? BNO055_DEFAULT_FUSION_MODE : op_mode;
+  imu->software_drift_comp = false; /* Smart BNO055 has internal BSX fusion; disable software ZRO fighting loop by default */
   bno055_assignI2C(hi2c);
 
   /* Bus recovery: 9 clocks on PA8/PC9 if previous run or slave hung SDA low */
@@ -696,7 +697,7 @@ bool BNO055_IMU_Update(BNO055_IMU_t *imu)
     imu->yaw_prev = yr;
 
     float bias_comp = 0.0f;
-    if ((dt_ms > 0U) && (dt_ms <= 250U))
+    if (imu->software_drift_comp && (dt_ms > 0U) && (dt_ms <= 250U))
     {
       bias_comp = imu->yaw_bias_dps * ((float)dt_ms * 0.001f);
     }
@@ -707,9 +708,10 @@ bool BNO055_IMU_Update(BNO055_IMU_t *imu)
     imu->pitch_total += BNO055_WrapDeltaDeg(pr - imu->pitch_prev);
     imu->pitch_prev = pr;
 
-    /* Windowed adaptive ZRO drift estimator (6-DOF IMU mode only — disabled in
-     * 9-DOF NDOF mode so software bias never fights magnetometer North lock) */
-    if ((imu->op_mode == BNO055_OPERATION_MODE_IMU) &&
+    /* Windowed adaptive ZRO drift estimator (6-DOF IMU mode only, when software_drift_comp enabled —
+     * disabled by default so software bias never fights BNO055 internal BSX fusion or creates heading PID runaway) */
+    if (imu->software_drift_comp &&
+        (imu->op_mode == BNO055_OPERATION_MODE_IMU) &&
         imu->stationary_hint &&
         (dt_ms > 0U) && (dt_ms <= 200U) &&
         (BNO055_Absf(raw_delta) <= BNO055_DRIFT_MAX_TICK_DEG))
@@ -771,6 +773,8 @@ void BNO055_IMU_ZeroYaw(BNO055_IMU_t *imu)
   }
   imu->yaw_offset = imu->yaw_total;
   imu->yaw = 0.0f;
+  imu->yaw_bias_dps = 0.0f;
+  BNO055_ResetDriftWindow(imu);
 }
 
 void BNO055_IMU_ZeroAll(BNO055_IMU_t *imu)
@@ -785,4 +789,6 @@ void BNO055_IMU_ZeroAll(BNO055_IMU_t *imu)
   imu->yaw = 0.0f;
   imu->roll = 0.0f;
   imu->pitch = 0.0f;
+  imu->yaw_bias_dps = 0.0f;
+  BNO055_ResetDriftWindow(imu);
 }
