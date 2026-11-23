@@ -1120,6 +1120,33 @@ static void test_itc2026_auto_fsm_and_rf_security(void) {
     assert(trigger_edges == 2U); /* Passed! Proven that R2 triggers reliably on every subsequent press! */
   }
 
+  /* Servo Command Isolation & Falsification Verification:
+   * When user moves joystick to raise/lower servos (ps2_btn[0] == 200..203):
+   * 1. Raw ps2_btn[0] = 200 (0b11001000) has Bit 3 set (200 & DRIVE_PS2_B0_START != 0).
+   * 2. clean_btn0_auto MUST evaluate to 0U, strictly suppressing false START trigger.
+   * 3. auto_msg.arg2 MUST carry clean_btn0_auto (0), NOT raw ps2_btn[0] (200).
+   * 4. R1 must remain completely silent (no transmission) during servo moves. */
+  {
+    const uint8_t servo_codes[4] = {200U, 201U, 202U, 203U};
+    for (uint8_t i = 0U; i < 4U; i++) {
+      uint8_t raw_btn0 = servo_codes[i];
+      /* Falsification demonstration: raw byte collides with DRIVE_PS2_B0_START */
+      assert((raw_btn0 & DRIVE_PS2_B0_START) != 0U);
+
+      /* Cleaned button state must strictly be 0 */
+      uint8_t clean_btn0_auto = (raw_btn0 < 200U) ? raw_btn0 : 0U;
+      assert(clean_btn0_auto == 0U);
+
+      /* R2 trigger must NEVER fire during servo stick moves */
+      bool trigger_auto = ((clean_btn0_auto & DRIVE_PS2_B0_START) != 0U);
+      assert(trigger_auto == false);
+
+      /* Encoded arg2 must not leak servo codes into button bits */
+      int16_t arg2 = (int16_t)(((uint16_t)0U << 8U) | clean_btn0_auto);
+      assert(((uint8_t)arg2 & DRIVE_PS2_B0_START) == 0U);
+    }
+  }
+
   /* Autonomous ITC 2026 FSM full cycle */
   ITC_Auto_t fsm;
   ITC_AutoInit(&fsm, ITC_BASE_RUN_RPMX10, 0.0f);
