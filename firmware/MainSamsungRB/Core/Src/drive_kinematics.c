@@ -338,7 +338,7 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
   }
 
   uint8_t raw_b0 = in->ps2_btn[0];
-  uint8_t b0 = (raw_b0 < 200U) ? raw_b0 : 0U; /* Codes >= 200 are 360-servo commands */
+  uint8_t b0 = (raw_b0 < 200U) ? raw_b0 : ctrl->prev_btn0; /* Codes >= 200 are 360-servo commands: freeze button state to prevent false edge triggers */
   uint8_t b1 = in->ps2_btn[1];
   uint8_t rise0 = (uint8_t)(b0 & (uint8_t)(~ctrl->prev_btn0));
   uint8_t rise1 = (uint8_t)(b1 & (uint8_t)(~ctrl->prev_btn1));
@@ -354,8 +354,11 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     ctrl->heading_initialized = true;
   }
 
-  /* START toggles custom modified field-centric + heading hold */
-  if ((rise0 & DRIVE_PS2_B0_START) != 0U) {
+  bool select_held = (b0 & DRIVE_PS2_B0_SELECT) != 0U;
+
+  /* START toggles custom modified field-centric + heading hold (Safety combo: SELECT + START).
+   * Standalone START (used to trigger Autonomous Robot R2 or pressed alone) NEVER disables field-centric or heading hold on R1! */
+  if (select_held && ((rise0 & DRIVE_PS2_B0_START) != 0U)) {
     ctrl->field_centric = !ctrl->field_centric;
     ctrl->heading_hold = ctrl->field_centric;
     if (ctrl->field_centric && imu_ok) {
@@ -417,7 +420,6 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
   float target_y = 0.0f;
   drive_extract_ps2_xy(in, &target_x, &target_y);
 
-  bool select_held = (b0 & DRIVE_PS2_B0_SELECT) != 0U;
   if (select_held) {
     float trim_sign = ctrl->heading_hold_invert ? -1.0f : 1.0f;
     if ((rise1 & DRIVE_PS2_B1_L1) != 0U) {
