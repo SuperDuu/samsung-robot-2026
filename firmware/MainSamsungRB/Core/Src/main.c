@@ -488,8 +488,10 @@ int main(void) {
     /* PS2 L3 zeros field heading; Select clears PidBoard faults; ext_sw selects
      * Blue/Red field axis */
     if (ps2_valid) {
+      static uint8_t s_prev_clean_btn0 = 0U;
       uint8_t raw_btn0 = g_tdk_cmd.ps2_btn[0];
-      uint8_t clean_btn0 = (raw_btn0 < 200U) ? raw_btn0 : 0U;
+      uint8_t clean_btn0 = (raw_btn0 < 200U) ? raw_btn0 : s_prev_clean_btn0;
+      s_prev_clean_btn0 = clean_btn0;
       uint8_t l3_now =
           ((clean_btn0 & DRIVE_PS2_B0_L3) != 0U) ? 1U : 0U;
       uint8_t select_now =
@@ -893,8 +895,10 @@ int main(void) {
      * user presses START / Button on TDK */
     /* When no TDK data: robot stands still, HC-12 remains 100% silent in RX
      * listen mode (NO TX) */
+    static uint8_t s_prev_clean_btn0_auto = 0U;
     uint8_t clean_btn0_auto =
-        (g_tdk_cmd.ps2_btn[0] < 200U) ? g_tdk_cmd.ps2_btn[0] : 0U;
+        (g_tdk_cmd.ps2_btn[0] < 200U) ? g_tdk_cmd.ps2_btn[0] : s_prev_clean_btn0_auto;
+    s_prev_clean_btn0_auto = clean_btn0_auto;
     bool trigger_auto =
         g_tdk_link_ok && (((clean_btn0_auto & DRIVE_PS2_B0_START) != 0U) ||
                           ((g_tdk_cmd.ext_sw & RF_TDK_EXT_BUTTON_BIT) != 0U));
