@@ -386,6 +386,7 @@ static void test_bno055_hardening_and_backoff(void) {
       g_mock_bno.yaw_deg = 0.0f;
       g_mock_bno.calib_stat = 0xFFU;
       assert(BNO055_IMU_Init(&drift_imu, &hi2c3));
+      drift_imu.software_drift_comp = true;
 
       BNO055_IMU_SetStationaryHint(&drift_imu, true);
       double sim_drift_deg = 0.0;
@@ -433,6 +434,12 @@ static void test_bno055_hardening_and_backoff(void) {
     }
     assert(drift_imu.bias_updates == updates_before);
     assert(fabsf(drift_imu.yaw_bias_dps - bias_before) < 0.001f);
+
+    /* (d) BNO055_IMU_ZeroYaw must immediately clear yaw_bias_dps and reset drift window */
+    assert(drift_imu.yaw_bias_dps != 0.0f);
+    BNO055_IMU_ZeroYaw(&drift_imu);
+    assert(drift_imu.yaw_bias_dps == 0.0f);
+    assert(drift_imu.still_win_ms == 0U);
   }
   printf("      PASS.\n");
 }
@@ -777,8 +784,19 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
                        ttargets);
     assert(fabsf(trim_ctrl.heading_trim_deg) < 0.001f);
 
-    /* Falsification: toggling START off (open-loop) + SELECT + R1 updates trim
-     * without open spin */
+    /* Falsification: Single-tap START alone (used to trigger R2) MUST NOT disable field_centric or heading_hold! */
+    tin.ps2_btn[0] = DRIVE_PS2_B0_START;
+    tin.ps2_btn[1] = 0U;
+    Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
+                       ttargets);
+    assert(trim_ctrl.field_centric && trim_ctrl.heading_hold);
+
+    /* Release button before combo test */
+    tin.ps2_btn[0] = 0U;
+    Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
+                       ttargets);
+
+    /* Intentional safety combo: SELECT + START toggles field_centric & heading_hold off (open-loop) */
     tin.ps2_btn[0] = (uint8_t)(DRIVE_PS2_B0_SELECT | DRIVE_PS2_B0_START);
     tin.ps2_btn[1] = 0U;
     Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
