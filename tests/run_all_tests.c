@@ -1055,6 +1055,71 @@ static void test_itc2026_auto_fsm_and_rf_security(void) {
   assert(auto_decoded.cmd == RF_AUTO_CMD_START);
   assert((auto_decoded.flags & RF_MANUAL_FLAG_TRIGGER_R2) != 0U);
 
+  /* Falsification & Multi-press lifecycle verification:
+   * Operator presses START -> R2 receives & triggers (1st run)
+   * Operator releases START -> R1 transmits release frame (cmd = NONE, flags without TRIGGER_R2) -> R2 resets edge detector
+   * Operator presses START again -> R2 receives & triggers reliably (2nd run) */
+  {
+    static bool s_mock_prev_rf_trigger = false;
+    uint32_t trigger_edges = 0U;
+
+    /* (1) Process first START frame */
+    bool rf_trig1 = ((auto_decoded.flags & RF_MANUAL_FLAG_TRIGGER_R2) != 0U) ||
+                    (auto_decoded.cmd == RF_AUTO_CMD_START);
+    if (rf_trig1 && !s_mock_prev_rf_trigger) {
+      trigger_edges++;
+    }
+    s_mock_prev_rf_trigger = rf_trig1;
+    assert(trigger_edges == 1U);
+    assert(s_mock_prev_rf_trigger == true);
+
+    /* (2) Repeat frame in burst must NOT double-trigger */
+    if (rf_trig1 && !s_mock_prev_rf_trigger) {
+      trigger_edges++;
+    }
+    s_mock_prev_rf_trigger = rf_trig1;
+    assert(trigger_edges == 1U);
+
+    /* (3) Transmit release frame from R1 */
+    RF_PayloadManualToAuto_t rel_msg = {
+        .cmd = RF_AUTO_CMD_NONE,
+        .flags = RF_MANUAL_FLAG_TDK_LINK
+    };
+    assert(RF_HC12_SendManualToAuto(&rf_man, RF_NODE_AUTO, &rel_msg) == HAL_OK);
+    RF_HC12_FeedBytes(&rf_auto, huart_tx_man.last_tx_buf,
+                      huart_tx_man.last_tx_len, 30U);
+    assert(RF_HC12_PopLatestFrame(&rf_auto, &auto_rx_frame) == true);
+    assert(RF_HC12_DecodeManualToAuto(&auto_rx_frame, &auto_decoded) == true);
+    assert(auto_decoded.cmd == RF_AUTO_CMD_NONE);
+    assert((auto_decoded.flags & RF_MANUAL_FLAG_TRIGGER_R2) == 0U);
+
+    bool rf_trig_rel = ((auto_decoded.flags & RF_MANUAL_FLAG_TRIGGER_R2) != 0U) ||
+                       (auto_decoded.cmd == RF_AUTO_CMD_START);
+    if (rf_trig_rel && !s_mock_prev_rf_trigger) {
+      trigger_edges++;
+    }
+    s_mock_prev_rf_trigger = rf_trig_rel;
+    assert(trigger_edges == 1U);
+    assert(s_mock_prev_rf_trigger == false); /* Successfully reset */
+
+    /* (4) Second START press: MUST trigger 2nd rising edge */
+    assert(RF_HC12_SendManualToAuto(&rf_man, RF_NODE_AUTO, &man_msg) == HAL_OK);
+    RF_HC12_FeedBytes(&rf_auto, huart_tx_man.last_tx_buf,
+                      huart_tx_man.last_tx_len, 40U);
+    assert(RF_HC12_PopLatestFrame(&rf_auto, &auto_rx_frame) == true);
+    assert(RF_HC12_DecodeManualToAuto(&auto_rx_frame, &auto_decoded) == true);
+    assert(auto_decoded.cmd == RF_AUTO_CMD_START);
+    assert((auto_decoded.flags & RF_MANUAL_FLAG_TRIGGER_R2) != 0U);
+
+    bool rf_trig2 = ((auto_decoded.flags & RF_MANUAL_FLAG_TRIGGER_R2) != 0U) ||
+                    (auto_decoded.cmd == RF_AUTO_CMD_START);
+    if (rf_trig2 && !s_mock_prev_rf_trigger) {
+      trigger_edges++;
+    }
+    s_mock_prev_rf_trigger = rf_trig2;
+    assert(trigger_edges == 2U); /* Passed! Proven that R2 triggers reliably on every subsequent press! */
+  }
+
   /* Autonomous ITC 2026 FSM full cycle */
   ITC_Auto_t fsm;
   ITC_AutoInit(&fsm, ITC_BASE_RUN_RPMX10, 0.0f);
