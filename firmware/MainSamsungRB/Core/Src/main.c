@@ -892,7 +892,7 @@ int main(void) {
     }
 
     /* 6. Forward state to Autonomous Robot (MainRB2 = RF_NODE_AUTO) when
-     * user presses START / Button on TDK */
+     * user presses START / Button on TDK, and keep R2 link alive with periodic heartbeat */
     /* When no TDK data: robot stands still, HC-12 remains 100% silent in RX
      * listen mode (NO TX) */
     static uint8_t s_prev_clean_btn0_auto = 0U;
@@ -905,29 +905,62 @@ int main(void) {
 
     static bool s_prev_trigger_auto = false;
     static uint8_t s_auto_burst_cnt = 0U;
+    static uint8_t s_auto_release_burst_cnt = 0U;
+
     if (trigger_auto && !s_prev_trigger_auto) {
-      /* Rising edge of trigger: schedule a burst of 5 frames spaced 25 ms for 100% RF delivery */
+      /* Rising edge of trigger: burst of 5 frames with TRIGGER_R2 = 1, cmd = RF_AUTO_CMD_START */
       s_auto_burst_cnt = 5U;
+      s_auto_release_burst_cnt = 0U;
+    } else if (!trigger_auto && s_prev_trigger_auto) {
+      /* Falling edge of trigger: burst of 5 release frames with TRIGGER_R2 = 0, cmd = RF_AUTO_CMD_NONE
+       * Guarantees R2 edge detector clears so subsequent START presses trigger reliably */
+      s_auto_release_burst_cnt = 5U;
+      s_auto_burst_cnt = 0U;
     }
     s_prev_trigger_auto = trigger_auto;
 
     bool send_auto_frame = false;
+    uint8_t frame_cmd = RF_AUTO_CMD_NONE;
+    bool frame_trigger_bit = false;
+
     if (s_auto_burst_cnt > 0U) {
-      if ((uint32_t)(now_ms - g_last_auto_tx_ms) >= 25U) {
+      if ((uint32_t)(now_ms - g_last_auto_tx_ms) >= 20U) {
         send_auto_frame = true;
+        frame_cmd = RF_AUTO_CMD_START;
+        frame_trigger_bit = true;
         s_auto_burst_cnt--;
       }
-    } else if (trigger_auto && ((uint32_t)(now_ms - g_last_auto_tx_ms) >= 80U)) {
-      send_auto_frame = true;
+    } else if (s_auto_release_burst_cnt > 0U) {
+      if ((uint32_t)(now_ms - g_last_auto_tx_ms) >= 20U) {
+        send_auto_frame = true;
+        frame_cmd = RF_AUTO_CMD_NONE;
+        frame_trigger_bit = false;
+        s_auto_release_burst_cnt--;
+      }
+    } else if (trigger_auto) {
+      /* While button is held, continue transmitting every 60 ms */
+      if ((uint32_t)(now_ms - g_last_auto_tx_ms) >= 60U) {
+        send_auto_frame = true;
+        frame_cmd = RF_AUTO_CMD_START;
+        frame_trigger_bit = true;
+      }
+    } else if (g_tdk_link_ok) {
+      /* Idle heartbeat to R2 every 100 ms: maintains R2 link alive (timeout 250 ms)
+       * and keeps TRIGGER_R2 flag reliably deasserted (0) */
+      if ((uint32_t)(now_ms - g_last_auto_tx_ms) >= 100U) {
+        send_auto_frame = true;
+        frame_cmd = RF_AUTO_CMD_NONE;
+        frame_trigger_bit = false;
+      }
     }
 
     if (send_auto_frame) {
       g_last_auto_tx_ms = now_ms;
       RF_PayloadManualToAuto_t auto_msg = {0};
-      auto_msg.cmd = RF_AUTO_CMD_START;
+      auto_msg.cmd = frame_cmd;
       auto_msg.mode = (uint8_t)CD4067_GetLedViewMode();
-      auto_msg.flags = RF_MANUAL_FLAG_TDK_LINK |
-                       RF_MANUAL_FLAG_TRIGGER_R2 |
+      auto_msg.flags = (g_tdk_link_ok ? RF_MANUAL_FLAG_TDK_LINK : 0U) |
+                       (frame_trigger_bit ? RF_MANUAL_FLAG_TRIGGER_R2 : 0U) |
                        (Buttons_IsPressed(BTN_SW1) ? RF_MANUAL_FLAG_SW1 : 0U) |
                        (Buttons_IsPressed(BTN_SW2) ? RF_MANUAL_FLAG_SW2 : 0U);
       auto_msg.reserved = (uint8_t)((g_omni_ctrl.gear & 0x03U) |
