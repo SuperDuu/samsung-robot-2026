@@ -918,7 +918,7 @@ void Drive_LineFollowFrontStep(Drive_LineFollowState_t *st,
     return;
   }
 
-  int16_t steer_limit = (int16_t)(((int32_t)base_rpm_x10 * 65) / 100);
+  int16_t steer_limit = (int16_t)(((int32_t)base_rpm_x10 * 80) / 100);
   if (steer_limit == 0) {
     steer_limit = 1;
   }
