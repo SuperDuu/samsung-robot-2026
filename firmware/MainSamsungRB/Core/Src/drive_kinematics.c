@@ -77,6 +77,29 @@ float Drive_SlewRamp(float current, float target, float accel_step,
   return target;
 }
 
+static bool drive_is_boost_cmd(uint8_t cmd) {
+  if ((cmd == DRIVE_CMD_L1_BOOST) || (cmd == DRIVE_CMD_L1_L2) ||
+      (cmd == DRIVE_CMD_L1_R2) || (cmd == DRIVE_CMD_L1_TRIANGLE) ||
+      (cmd == DRIVE_CMD_L1_CIRCLE) || (cmd == DRIVE_CMD_L1_CROSS) ||
+      (cmd == DRIVE_CMD_L1_SQUARE)) {
+    return true;
+  }
+  return false;
+}
+
+static bool drive_is_l2_cmd(uint8_t cmd) {
+  return (cmd == DRIVE_CMD_L2) || (cmd == DRIVE_CMD_L1_L2);
+}
+
+static bool drive_is_r2_cmd(uint8_t cmd) {
+  return (cmd == DRIVE_CMD_R2) || (cmd == DRIVE_CMD_L1_R2);
+}
+
+static bool drive_is_dpad_cmd(uint8_t cmd) {
+  return (cmd == DRIVE_CMD_DPAD_UP) || (cmd == DRIVE_CMD_DPAD_RIGHT) ||
+         (cmd == DRIVE_CMD_DPAD_DOWN) || (cmd == DRIVE_CMD_DPAD_LEFT);
+}
+
 static void drive_extract_ps2_xy(const Drive_Ps2Input_t *in, float *out_x,
                                  float *out_y) {
   /* PS2_STM32.c computes joy_sum[0] = (map(LY) + map(RY)) - 4 in uint8_t:
@@ -96,23 +119,19 @@ static void drive_extract_ps2_xy(const Drive_Ps2Input_t *in, float *out_x,
     target_x = 0.0f;
   }
 
-  /* Digital D-pad fallback (active in both digital 0x41 and centered analog
-   * modes; codes >= 200 are reserved for continuous 360 servos) */
-  if ((target_y == 0.0f) && (in->ps2_btn[0] < 200U)) {
-    bool dpad_up = (in->ps2_btn[0] & DRIVE_PS2_B0_UP) != 0U;
-    bool dpad_down = (in->ps2_btn[0] & DRIVE_PS2_B0_DOWN) != 0U;
-    if (dpad_up && !dpad_down) {
+  /* Precision D-pad crawl via exact uint8_t if/else-if (zero bitmask ambiguity) */
+  uint8_t cmd = in->ps2_btn[1];
+  if (target_y == 0.0f) {
+    if (cmd == DRIVE_CMD_DPAD_UP) {
       target_y = -DRIVE_OMNI_DPAD_PCT;
-    } else if (dpad_down && !dpad_up) {
+    } else if (cmd == DRIVE_CMD_DPAD_DOWN) {
       target_y = +DRIVE_OMNI_DPAD_PCT;
     }
   }
-  if ((target_x == 0.0f) && (in->ps2_btn[0] < 200U)) {
-    bool dpad_left = (in->ps2_btn[0] & DRIVE_PS2_B0_LEFT) != 0U;
-    bool dpad_right = (in->ps2_btn[0] & DRIVE_PS2_B0_RIGHT) != 0U;
-    if (dpad_left && !dpad_right) {
+  if (target_x == 0.0f) {
+    if (cmd == DRIVE_CMD_DPAD_LEFT) {
       target_x = -DRIVE_OMNI_DPAD_PCT;
-    } else if (dpad_right && !dpad_left) {
+    } else if (cmd == DRIVE_CMD_DPAD_RIGHT) {
       target_x = +DRIVE_OMNI_DPAD_PCT;
     }
   }
@@ -215,10 +234,11 @@ void Drive_OmniComputeFromPs2(Drive_OmniState_t *state,
   float target_y = 0.0f;
   drive_extract_ps2_xy(in, &target_x, &target_y);
 
-  bool boost_3x = (in->ps2_btn[1] & DRIVE_PS2_B1_L1) != 0U; /* tx_buf[3] = 4: 3x speed boost */
-  bool l2 = (in->ps2_btn[1] & DRIVE_PS2_B1_L2) != 0U;
-  bool r2 = (in->ps2_btn[1] & DRIVE_PS2_B1_R2) != 0U;
-  /* Note: R1 is dedicated to gripper clamp toggle (180 deg servo), NOT robot rotation */
+  uint8_t cmd = in->ps2_btn[1];
+  bool boost_3x = drive_is_boost_cmd(cmd);
+  bool l2 = drive_is_l2_cmd(cmd);
+  bool r2 = drive_is_r2_cmd(cmd);
+  /* Note: R1 (DRIVE_CMD_R1_CLAMP = 8) is dedicated to gripper clamp toggle, NOT robot rotation */
   float trim_speed =
       boost_3x ? DRIVE_OMNI_BOOST_ROT_PCT : DRIVE_OMNI_TRIM_ROT_PCT;
   float target_w = 0.0f;
@@ -241,9 +261,7 @@ void Drive_OmniComputeFromPs2(Drive_OmniState_t *state,
     theta_rad = wrapped_deg * DRIVE_DEG_TO_RAD_F;
   }
 
-  bool dpad_active = (in->ps2_btn[0] < 200U) &&
-                     ((in->ps2_btn[0] & (DRIVE_PS2_B0_UP | DRIVE_PS2_B0_RIGHT |
-                                         DRIVE_PS2_B0_DOWN | DRIVE_PS2_B0_LEFT)) != 0U);
+  bool dpad_active = drive_is_dpad_cmd(cmd);
   float speed_pct = dpad_active ? (float)DRIVE_OMNI_CRAWL_PCT : 33.0f;
   float v_scale = ((float)max_abs_rpm_x10 * speed_pct) * 0.01f;
   if (boost_3x) {
@@ -337,15 +355,16 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     return;
   }
 
-  uint8_t raw_b0 = in->ps2_btn[0];
-  uint8_t b0 = (raw_b0 < 200U) ? raw_b0 : ctrl->prev_btn0; /* Codes >= 200 are 360-servo commands: freeze button state to prevent false edge triggers */
-  uint8_t b1 = in->ps2_btn[1];
-  uint8_t rise0 = (uint8_t)(b0 & (uint8_t)(~ctrl->prev_btn0));
-  uint8_t rise1 = (uint8_t)(b1 & (uint8_t)(~ctrl->prev_btn1));
-  uint8_t fell1 = (uint8_t)(ctrl->prev_btn1 & (uint8_t)(~b1));
-  bool trim_release = ((fell1 & (DRIVE_PS2_B1_L2 | DRIVE_PS2_B1_R2)) != 0U);
-  ctrl->prev_btn0 = b0;
-  ctrl->prev_btn1 = b1;
+  /* Single-byte uint8_t command decoding via exact if/else-if (ZERO bitmasks) */
+  uint8_t cmd = in->ps2_btn[1];
+  uint8_t prev_cmd = ctrl->prev_btn1;
+  bool l2 = drive_is_l2_cmd(cmd);
+  bool r2 = drive_is_r2_cmd(cmd);
+  bool trim_rot = (l2 != r2);
+  bool was_trim = drive_is_l2_cmd(prev_cmd) || drive_is_r2_cmd(prev_cmd);
+  bool trim_release = was_trim && !trim_rot;
+  ctrl->prev_btn0 = 0U;
+  ctrl->prev_btn1 = cmd;
 
   bool imu_ok = imu_healthy && isfinite(robot_yaw_deg);
   if (imu_ok && !ctrl->heading_initialized) {
@@ -354,11 +373,13 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     ctrl->heading_initialized = true;
   }
 
-  bool select_held = (b0 & DRIVE_PS2_B0_SELECT) != 0U;
+  bool select_held =
+      (cmd == DRIVE_CMD_SELECT) || (cmd == DRIVE_CMD_SELECT_START) ||
+      (cmd == DRIVE_CMD_SELECT_L1) || (cmd == DRIVE_CMD_SELECT_R1);
 
-  /* START toggles custom modified field-centric + heading hold (Safety combo: SELECT + START).
-   * Standalone START (used to trigger Autonomous Robot R2 or pressed alone) NEVER disables field-centric or heading hold on R1! */
-  if (select_held && ((rise0 & DRIVE_PS2_B0_START) != 0U)) {
+  /* SELECT + START (141) toggles custom modified field-centric + heading hold.
+   * Standalone START (DRIVE_CMD_START_AUTO = 146) NEVER disables field-centric! */
+  if ((cmd == DRIVE_CMD_SELECT_START) && (prev_cmd != DRIVE_CMD_SELECT_START)) {
     ctrl->field_centric = !ctrl->field_centric;
     ctrl->heading_hold = ctrl->field_centric;
     if (ctrl->field_centric && imu_ok) {
@@ -368,47 +389,47 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     }
   }
 
-  /* L2 = fine-trim rotate LEFT, R2 = fine-trim rotate RIGHT at 20 RPM */
-  bool l2 = (b1 & DRIVE_PS2_B1_L2) != 0U;
-  bool r2 = (b1 & DRIVE_PS2_B1_R2) != 0U;
-  bool trim_rot = (l2 != r2);
-
-  /* D-pad micro-adjustment (16, 32, 64, 128): lock into 20% crawl speed */
-  bool dpad_active = (b0 & (DRIVE_PS2_B0_UP | DRIVE_PS2_B0_RIGHT |
-                            DRIVE_PS2_B0_DOWN | DRIVE_PS2_B0_LEFT)) != 0U;
+  /* D-pad micro-adjustment (210..213): lock into 22% crawl speed */
+  bool dpad_active = drive_is_dpad_cmd(cmd);
   ctrl->active_speed_pct =
       dpad_active ? DRIVE_OMNI_CRAWL_PCT : kGearSpeedPct[ctrl->gear];
 
-  /* Cardinal + diagonal field-centric snaps:
-   * When pure_field_centric is true, keep field_axis_offset_deg = 0.0f so
-   * joystick UP always moves toward the true field-forward direction regardless
-   * of robot nose heading. */
+  /* Cardinal + diagonal field-centric snaps via exact uint8_t if/else-if */
+  bool tri_now = (cmd == DRIVE_CMD_TRIANGLE) || (cmd == DRIVE_CMD_L1_TRIANGLE);
+  bool tri_prev = (prev_cmd == DRIVE_CMD_TRIANGLE) || (prev_cmd == DRIVE_CMD_L1_TRIANGLE);
+  bool cir_now = (cmd == DRIVE_CMD_CIRCLE) || (cmd == DRIVE_CMD_L1_CIRCLE);
+  bool cir_prev = (prev_cmd == DRIVE_CMD_CIRCLE) || (prev_cmd == DRIVE_CMD_L1_CIRCLE);
+  bool cross_now = (cmd == DRIVE_CMD_CROSS) || (cmd == DRIVE_CMD_L1_CROSS);
+  bool cross_prev = (prev_cmd == DRIVE_CMD_CROSS) || (prev_cmd == DRIVE_CMD_L1_CROSS);
+  bool sq_now = (cmd == DRIVE_CMD_SQUARE) || (cmd == DRIVE_CMD_L1_SQUARE);
+  bool sq_prev = (prev_cmd == DRIVE_CMD_SQUARE) || (prev_cmd == DRIVE_CMD_L1_SQUARE);
+
   bool cardinal_or_diag = false;
-  if ((rise1 & DRIVE_PS2_B1_TRIANGLE) != 0U) {
+  if (tri_now && !tri_prev) {
     ctrl->target_heading_deg = 0.0f;
     ctrl->field_axis_offset_deg = 0.0f;
     ctrl->diagonal_45 = false;
     cardinal_or_diag = true;
-  } else if ((rise1 & DRIVE_PS2_B1_CIRCLE) != 0U) {
-    /* Button 32 (Circle / Right): snap to -90 deg (quay phai) */
+  } else if (cir_now && !cir_prev) {
+    /* Circle: snap to -90 deg (quay phai) */
     ctrl->target_heading_deg = -90.0f;
     ctrl->field_axis_offset_deg =
         ctrl->pure_field_centric ? 0.0f : (ctrl->blue_side ? 90.0f : -90.0f);
     ctrl->diagonal_45 = false;
     cardinal_or_diag = true;
-  } else if ((rise1 & DRIVE_PS2_B1_CROSS) != 0U) {
+  } else if (cross_now && !cross_prev) {
     ctrl->target_heading_deg = 180.0f;
     ctrl->field_axis_offset_deg = ctrl->pure_field_centric ? 0.0f : 180.0f;
     ctrl->diagonal_45 = false;
     cardinal_or_diag = true;
-  } else if ((rise1 & DRIVE_PS2_B1_SQUARE) != 0U) {
-    /* Button 128 (Square / Left): snap to +90 deg (quay trai) */
+  } else if (sq_now && !sq_prev) {
+    /* Square: snap to +90 deg (quay trai) */
     ctrl->target_heading_deg = 90.0f;
     ctrl->field_axis_offset_deg =
         ctrl->pure_field_centric ? 0.0f : (ctrl->blue_side ? 90.0f : -90.0f);
     ctrl->diagonal_45 = false;
     cardinal_or_diag = true;
-  } else if ((rise0 & DRIVE_PS2_B0_R3) != 0U) {
+  } else if ((cmd == DRIVE_CMD_R3) && (prev_cmd != DRIVE_CMD_R3)) {
     /* Toggle +/-45 deg diagonal offset without losing cardinal orientation */
     ctrl->diagonal_45 = !ctrl->diagonal_45;
     ctrl->target_heading_deg = Drive_WrapAngleDeg(
@@ -420,23 +441,20 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
   float target_y = 0.0f;
   drive_extract_ps2_xy(in, &target_x, &target_y);
 
-  if (select_held) {
-    float trim_sign = ctrl->heading_hold_invert ? -1.0f : 1.0f;
-    if ((rise1 & DRIVE_PS2_B1_L1) != 0U) {
-      ctrl->heading_trim_deg =
-          Drive_WrapAngleDeg(ctrl->heading_trim_deg +
-                             trim_sign * DRIVE_OMNI_HEADING_TRIM_STEP_DEG);
-      cardinal_or_diag = true;
-    }
-    if ((rise1 & DRIVE_PS2_B1_R1) != 0U) {
-      ctrl->heading_trim_deg =
-          Drive_WrapAngleDeg(ctrl->heading_trim_deg -
-                             trim_sign * DRIVE_OMNI_HEADING_TRIM_STEP_DEG);
-      cardinal_or_diag = true;
-    }
+  float trim_sign = ctrl->heading_hold_invert ? -1.0f : 1.0f;
+  if ((cmd == DRIVE_CMD_SELECT_L1) && (prev_cmd != DRIVE_CMD_SELECT_L1)) {
+    ctrl->heading_trim_deg =
+        Drive_WrapAngleDeg(ctrl->heading_trim_deg +
+                           trim_sign * DRIVE_OMNI_HEADING_TRIM_STEP_DEG);
+    cardinal_or_diag = true;
+  } else if ((cmd == DRIVE_CMD_SELECT_R1) && (prev_cmd != DRIVE_CMD_SELECT_R1)) {
+    ctrl->heading_trim_deg =
+        Drive_WrapAngleDeg(ctrl->heading_trim_deg -
+                           trim_sign * DRIVE_OMNI_HEADING_TRIM_STEP_DEG);
+    cardinal_or_diag = true;
   }
 
-  bool boost_3x = (b1 & DRIVE_PS2_B1_L1) != 0U; /* tx_buf[3] = 4: 3x speed boost */
+  bool boost_3x = drive_is_boost_cmd(cmd);
   bool l1 = false; /* L1 is dedicated to 3x turbo boost, NOT left rotation */
   bool r1 = false; /* R1 is dedicated to gripper clamp toggle (180 deg servo), NOT right rotation */
   if (cardinal_or_diag || trim_rot || (!select_held && (l1 != r1))) {
