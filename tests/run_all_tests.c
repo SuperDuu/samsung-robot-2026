@@ -238,6 +238,38 @@ static void test_rs485_non_destructive_error_recovery(void) {
   assert(master.stats.tx_wdog_recoveries == 1U);
   assert(!MockHal_GetGpioOut(RE_DE_GPIO_Port,
                              RE_DE_Pin)); /* Released back to RX LOW */
+
+  /* Falsification: When HAL_UART_IRQHandler sets RxState=READY before calling
+   * RS485_UartErrorCallback, ISR must defer re-arm (no DMA abort in ISR) so
+   * stale DMA ring bytes are cleared by RS485_ProcessRx() and NEVER replayed! */
+  aborts_before = g_mock_uart_abort_rx_calls;
+  uint32_t rx_before = s_rx_frames_ok;
+  wire_bytes[wire_len - 1U] ^= 0x01U; /* Restore valid CRC */
+  MockHal_UartInjectDmaBytes(&huart2, wire_bytes, wire_len);
+  MockHal_SetTick(70U);
+  huart2.RxState = HAL_UART_STATE_READY;
+  huart2.ErrorCode = HAL_UART_ERROR_FE;
+  RS485_UartErrorCallback(&master, &huart2);
+  assert(master.rx_rearm_needed == 1U);
+  assert(g_mock_uart_abort_rx_calls == aborts_before);
+  assert(s_rx_frames_ok == rx_before + 1U);
+
+  RS485_ProcessRx(&master, 71U);
+  assert(master.rx_rearm_needed == 0U);
+  assert(huart2.RxState == HAL_UART_STATE_BUSY_RX);
+  assert(master.rx_read_pos == 0U);
+  assert(master.rx_dma_buf[0] == 0U); /* Cleared -> impossible to replay */
+  assert(s_rx_frames_ok == rx_before + 1U);
+
+  /* Falsification: Slave reply delayed past RS485_SLAVE_REPLY_MAX_AGE_MS (5ms)
+   * MUST be dropped instead of colliding with Master's 10 ms poll slot! */
+  uint32_t slave_tx_before = huart_slave.tx_calls;
+  assert(RS485_ScheduleTelemReply(&slave, RS485_ADDR_MASTER, &tx_telem, 100U));
+  RS485_TickMs(&slave, 106U); /* Age 6 ms > 5 ms */
+  assert(slave.pending_reply_valid == 0U);
+  assert(huart_slave.tx_calls == slave_tx_before);
+  assert(slave.stats.stale_reply_drops == 1U);
+
   printf("      PASS.\n");
 }
 
