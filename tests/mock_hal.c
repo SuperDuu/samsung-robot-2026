@@ -720,7 +720,22 @@ HAL_StatusTypeDef HAL_I2C_Mem_Read(I2C_HandleTypeDef *hi2c, uint16_t DevAddress,
     bno_encode_i16_le(&page0[0x1E], g_mock_bno.pitch_deg);
     if (g_mock_bno.opr_mode != 0x00U)
     {
-      bno_encode_quat_le(page0, g_mock_bno.yaw_deg, g_mock_bno.pitch_deg, g_mock_bno.roll_deg);
+      if (g_mock_bno.corrupt_quat_once && (MemAddress == 0x20U))
+      {
+        g_mock_bno.corrupt_quat_once = false;
+        page0[0x20] = 0xFFU;
+        page0[0x21] = 0x7FU;
+        page0[0x22] = 0xFFU;
+        page0[0x23] = 0x7FU;
+        page0[0x24] = 0x00U;
+        page0[0x25] = 0x00U;
+        page0[0x26] = 0x00U;
+        page0[0x27] = 0x40U;
+      }
+      else
+      {
+        bno_encode_quat_le(page0, g_mock_bno.yaw_deg, g_mock_bno.pitch_deg, g_mock_bno.roll_deg);
+      }
     }
     page0[0x35] = g_mock_bno.calib_stat;
     page0[0x3D] = g_mock_bno.opr_mode;

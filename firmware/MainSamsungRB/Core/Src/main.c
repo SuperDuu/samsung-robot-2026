@@ -413,7 +413,7 @@ int main(void) {
      * quadrants; L1/R1 rotation buttons invert for CCW+ BNO085 so L1=Left,
      * R1=Right. */
     g_omni_ctrl.field_centric_invert = false;
-    g_omni_ctrl.rot_btn_invert = (g_imu.chip_id == 0x85U);
+    g_omni_ctrl.rot_btn_invert = true; /* Both BNO085 and BNO055 Quaternion yield CCW+ yaw */
   }
   g_last_imu_tick_ms = HAL_GetTick();
   g_last_auto_tx_ms = g_last_imu_tick_ms;
@@ -871,7 +871,7 @@ int main(void) {
           s_last_reconnect_ms = now_ms;
           if (BNO055_IMU_Init(&g_imu, &hi2c3)) {
             g_omni_ctrl.field_centric_invert = false;
-            g_omni_ctrl.rot_btn_invert = (g_imu.chip_id == 0x85U);
+            g_omni_ctrl.rot_btn_invert = true; /* Both BNO085 and BNO055 Quaternion yield CCW+ yaw */
           }
         }
       }
@@ -1160,17 +1160,23 @@ int main(void) {
       int32_t p_f = (int32_t)(fabsf(g_imu.pitch - (float)p_i) * 100.0f);
       int32_t r_i = (int32_t)g_imu.roll;
       int32_t r_f = (int32_t)(fabsf(g_imu.roll - (float)r_i) * 100.0f);
-      char cdc_msg[140];
+      int32_t t_i = (int32_t)g_omni_ctrl.target_heading_deg;
+      char cdc_msg[180];
       int cdc_len = snprintf(
           cdc_msg, sizeof(cdc_msg),
-          "[IMU] CHIP:0x%02X ADDR:0x%02X YAW:%s%ld.%02ld PITCH:%s%ld.%02ld "
-          "ROLL:%s%ld.%02ld CAL:%d OK:%lu ERR:%lu\r\n",
-          g_imu.chip_id, g_imu.i2c_addr,
+          "[IMU] ID:0x%02X M:0x%02X YAW:%s%ld.%02ld TGT:%ld CAL:%d%d%d%d "
+          "RST:%lu QER:%lu SPK:%lu REC:%lu OK:%lu\r\n",
+          g_imu.chip_id, (unsigned)g_imu.op_mode,
           (g_imu.yaw < 0.0f && y_i == 0) ? "-" : "", (long)y_i, (long)y_f,
-          (g_imu.pitch < 0.0f && p_i == 0) ? "-" : "", (long)p_i, (long)p_f,
-          (g_imu.roll < 0.0f && r_i == 0) ? "-" : "", (long)r_i, (long)r_f,
-          g_imu.calib.sys, (unsigned long)g_imu.ok_count,
-          (unsigned long)g_imu.err_count);
+          (long)t_i, g_imu.calib.sys, g_imu.calib.gyro, g_imu.calib.accel,
+          g_imu.calib.mag, (unsigned long)g_imu.mode_resets,
+          (unsigned long)g_imu.quat_err_count,
+          (unsigned long)g_imu.spike_count, (unsigned long)g_imu.recoveries,
+          (unsigned long)g_imu.ok_count);
+      (void)p_i;
+      (void)p_f;
+      (void)r_i;
+      (void)r_f;
       if (cdc_len > 0) {
         CDC_Transmit_FS((uint8_t *)cdc_msg, (uint16_t)cdc_len);
       }

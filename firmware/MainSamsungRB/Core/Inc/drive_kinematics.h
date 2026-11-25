@@ -34,6 +34,8 @@ extern "C" {
 #define DRIVE_OMNI_OMEGA_SCALE_RPMX10    2000.0f /* Fixed 200 RPM full-scale (2.0 RPM per 1%), decoupled from Gear! */
 #define DRIVE_OMNI_SLEW_ACCEL            25.0f   /* 25% per 10ms = 250%/s punchy, responsive translation */
 #define DRIVE_OMNI_SLEW_DECEL            35.0f   /* 35% per 10ms = 350%/s rapid deceleration */
+#define DRIVE_OMNI_OMEGA_SLEW_ACCEL      25.0f   /* 25% per 10ms spin accel (instant L1/L2 step, crisp PD) */
+#define DRIVE_OMNI_OMEGA_SLEW_DECEL      35.0f   /* 35% per 10ms decel/reversal (smoothly crosses 0 on plugging) */
 
 #define DRIVE_OMNI_GEAR_COUNT            4U
 #define DRIVE_OMNI_DEFAULT_GEAR          0U      /* 33% default base speed tier (3x boost with L1 reaches 100%) */

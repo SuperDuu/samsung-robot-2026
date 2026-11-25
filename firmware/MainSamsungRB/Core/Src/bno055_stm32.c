@@ -456,6 +456,8 @@ static bool BNO055_CheckAndRestoreMode(BNO055_IMU_t *imu, bool *mode_was_reset)
   }
 
   BNO055_DecodeCalib(imu, status_buf[0]);
+  imu->sys_status = status_buf[4];
+  imu->sys_err = status_buf[5];
   uint8_t cur_mode = (uint8_t)(status_buf[8] & 0x0FU);
   if (cur_mode != (uint8_t)imu->op_mode)
   {
@@ -467,6 +469,7 @@ static bool BNO055_CheckAndRestoreMode(BNO055_IMU_t *imu, bool *mode_was_reset)
     }
     bno055_setPage(0U);
     bno055_writeData(BNO055_OPR_MODE, (uint8_t)imu->op_mode);
+    bno055_delay(10);
     imu->mode_resets++;
     imu->resync_yaw_prev = true;
     BNO055_ResetDriftWindow(imu);
@@ -833,7 +836,15 @@ bool BNO055_IMU_Update(BNO055_IMU_t *imu)
       bno055_readData(BNO055_OPR_MODE, &cur_mode, 1U);
       if ((_bno055_last_status != HAL_OK) || ((uint8_t)(cur_mode & 0x0FU) != (uint8_t)imu->op_mode))
       {
+        bno055_setOperationModeConfig();
+        bno055_delay(10);
+        if (imu->has_saved_cal)
+        {
+          (void)BNO055_WriteCalProfile22(imu->saved_cal_data);
+        }
+        bno055_setPage(0U);
         bno055_writeData(BNO055_OPR_MODE, (uint8_t)imu->op_mode);
+        bno055_delay(10);
         imu->mode_resets++;
         imu->resync_yaw_prev = true;
       }
@@ -872,6 +883,8 @@ bool BNO055_IMU_Update(BNO055_IMU_t *imu)
 
   /* Unit quaternions always have norm ~1.0; a {0,0,0,0} quat is an unequivocal
    * signature of uninitialized data or silent brownout reset. */
+  float qn2 = (float)((quat.w * quat.w) + (quat.x * quat.x) +
+                      (quat.y * quat.y) + (quat.z * quat.z));
   bool quat_zero_snap = !imu->resync_yaw_prev &&
                         (quat.w == 0.0) && (quat.x == 0.0) && (quat.y == 0.0) && (quat.z == 0.0);
 
@@ -892,28 +905,45 @@ bool BNO055_IMU_Update(BNO055_IMU_t *imu)
     }
   }
 
-  uint32_t dt_ms = imu->has_prev_sample_ms ? (uint32_t)(now_ms - imu->prev_sample_ms) : 0U;
-  imu->prev_sample_ms = now_ms;
-  imu->has_prev_sample_ms = true;
+  /* Reject non-unit corrupted quaternions (I2C EMI bit flip / torn register burst) */
+  if (!isfinite(qn2) || (qn2 < BNO055_QUAT_NORM2_MIN) || (qn2 > BNO055_QUAT_NORM2_MAX))
+  {
+    imu->err_count++;
+    imu->quat_err_count++;
+    imu->last_bad_qn2 = qn2;
+    if (imu->consec_errs < 255U)
+    {
+      imu->consec_errs++;
+    }
+    if (imu->consec_errs >= BNO055_CONSEC_ERR_LIMIT)
+    {
+      imu->healthy = false;
+      imu->next_recover_ms = now_ms + BNO055_RECOVER_BACKOFF_MS;
+    }
+    return false;
+  }
 
-  imu->consec_errs = 0U;
-  imu->healthy = true;
-  imu->last_ok_ms = now_ms;
+  uint32_t dt_ms = imu->has_prev_sample_ms ? (uint32_t)(now_ms - imu->prev_sample_ms) : 0U;
 
   float yr = 0.0f;
   float pr = 0.0f;
   float rr = 0.0f;
   BNO055_QuatToEuler((float)quat.w, (float)quat.x, (float)quat.y, (float)quat.z,
                      &yr, &pr, &rr);
-  imu->euler.x = (double)yr;
-  imu->euler.y = (double)rr;
-  imu->euler.z = (double)pr;
-  imu->yaw_raw = yr;
-  imu->roll_raw = rr;
-  imu->pitch_raw = pr;
 
   if (imu->resync_yaw_prev)
   {
+    imu->prev_sample_ms = now_ms;
+    imu->has_prev_sample_ms = true;
+    imu->consec_errs = 0U;
+    imu->healthy = true;
+    imu->last_ok_ms = now_ms;
+    imu->euler.x = (double)yr;
+    imu->euler.y = (double)rr;
+    imu->euler.z = (double)pr;
+    imu->yaw_raw = yr;
+    imu->roll_raw = rr;
+    imu->pitch_raw = pr;
     imu->yaw_prev = yr;
     imu->roll_prev = rr;
     imu->pitch_prev = pr;
@@ -923,6 +953,36 @@ bool BNO055_IMU_Update(BNO055_IMU_t *imu)
   else
   {
     float raw_delta = BNO055_WrapDeltaDeg(yr - imu->yaw_prev);
+    if ((dt_ms < BNO055_SPIKE_DT_MS) &&
+        (BNO055_Absf(raw_delta) > BNO055_MAX_TICK_YAW_STEP_DEG))
+    {
+      /* Physically impossible single-tick jump (>25 deg in <25 ms): reject corrupted sample */
+      imu->err_count++;
+      imu->spike_count++;
+      imu->last_spike_deg = raw_delta;
+      if (imu->consec_errs < 255U)
+      {
+        imu->consec_errs++;
+      }
+      if (imu->consec_errs >= BNO055_CONSEC_ERR_LIMIT)
+      {
+        imu->healthy = false;
+        imu->next_recover_ms = now_ms + BNO055_RECOVER_BACKOFF_MS;
+      }
+      return false;
+    }
+
+    imu->prev_sample_ms = now_ms;
+    imu->has_prev_sample_ms = true;
+    imu->consec_errs = 0U;
+    imu->healthy = true;
+    imu->last_ok_ms = now_ms;
+    imu->euler.x = (double)yr;
+    imu->euler.y = (double)rr;
+    imu->euler.z = (double)pr;
+    imu->yaw_raw = yr;
+    imu->roll_raw = rr;
+    imu->pitch_raw = pr;
     imu->yaw_prev = yr;
 
     float bias_comp = 0.0f;

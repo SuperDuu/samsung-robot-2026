@@ -330,6 +330,7 @@ typedef struct
   uint32_t i2c_rx_count;
   uint32_t nack_remaining;
   bool     bus_stuck;
+  bool     corrupt_quat_once;
   uint8_t  last_reg;
 } Mock_BNO055_t;
 

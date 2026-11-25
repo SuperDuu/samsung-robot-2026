@@ -510,6 +510,7 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     }
     ctrl->heading_settled = false;
     ctrl->rot_ramp_ticks = DRIVE_OMNI_HEADING_RAMP_TICKS;
+    ctrl->ramp_omega_deg = 0.0f;
     ctrl->omega_fb_pct = target_w;
   } else if (ctrl->field_centric && ctrl->heading_hold && imu_ok) {
     if (!select_held && l1 && !r1) {
@@ -656,7 +657,9 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
       Drive_SlewRamp(ctrl->slew.vy_pct, target_y, DRIVE_OMNI_SLEW_ACCEL,
                      DRIVE_OMNI_SLEW_DECEL);
   if (ctrl->field_centric && ctrl->heading_hold && imu_ok) {
-    ctrl->slew.omega_pct = target_w;
+    ctrl->slew.omega_pct = Drive_SlewRamp(
+        ctrl->slew.omega_pct, target_w, DRIVE_OMNI_OMEGA_SLEW_ACCEL,
+        DRIVE_OMNI_OMEGA_SLEW_DECEL);
   } else {
     ctrl->slew.omega_pct =
         Drive_SlewRamp(ctrl->slew.omega_pct, target_w, DRIVE_OMNI_SLEW_ACCEL,

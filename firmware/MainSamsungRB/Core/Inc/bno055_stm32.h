@@ -20,6 +20,10 @@
 #define BNO055_CONSEC_ERR_LIMIT       3U
 #define BNO055_RECOVER_BACKOFF_MS     250U
 #define BNO055_CALIB_POLL_DIV         20U
+#define BNO055_QUAT_NORM2_MIN         0.85f
+#define BNO055_QUAT_NORM2_MAX         1.15f
+#define BNO055_MAX_TICK_YAW_STEP_DEG  25.0f
+#define BNO055_SPIKE_DT_MS            25U
 #define BNO055_DEFAULT_FUSION_MODE    BNO055_OPERATION_MODE_NDOF
 #define BNO055_FLASH_CAL_DATA_LEN     22U
 #define BNO055_FLASH_CAL_SECTOR_ADDR  0x080E0000UL
@@ -63,7 +67,13 @@ typedef struct
   uint32_t                   err_count;
   uint32_t                   recoveries;
   uint32_t                   mode_resets;
+  uint32_t                   quat_err_count;
+  uint32_t                   spike_count;
   uint32_t                   bias_updates;
+  uint8_t                    sys_status;
+  uint8_t                    sys_err;
+  float                      last_bad_qn2;
+  float                      last_spike_deg;
   uint32_t                   last_ok_ms;
   uint32_t                   next_recover_ms;
   uint32_t                   prev_sample_ms;

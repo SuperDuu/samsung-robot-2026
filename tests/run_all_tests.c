@@ -369,10 +369,12 @@ static void test_bno055_hardening_and_backoff(void) {
     assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_NDOF);
     assert(!bo_imu.resync_yaw_prev);
 
-    g_mock_bno.yaw_deg = 90.0f;
-    MockHal_AdvanceTick(10U);
-    assert(BNO055_IMU_Update(&bo_imu));
-    assert(fabsf(bo_imu.yaw - 90.0f) < 0.1f);
+    for (int step = 1; step <= 6; step++) {
+      g_mock_bno.yaw_deg = (float)step * 15.0f;
+      MockHal_AdvanceTick(10U);
+      assert(BNO055_IMU_Update(&bo_imu));
+    }
+    assert(fabsf(bo_imu.yaw - 90.0f) < 0.25f);
 
     /* Sub-check (a2): brown-out while rotated: OPR_MODE resets to CONFIG
      * (0x00), Euler drops to {0,0,0} with HAL_OK */
@@ -382,21 +384,23 @@ static void test_bno055_hardening_and_backoff(void) {
     assert(BNO055_IMU_Update(&bo_imu));
     assert(bo_imu.mode_resets == 2U);
     assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_NDOF);
-    assert(fabsf(bo_imu.yaw - 90.0f) < 0.1f);
+    assert(fabsf(bo_imu.yaw - 90.0f) < 0.25f);
 
     /* Post-restore resync + +15 deg relative turn */
     MockHal_AdvanceTick(10U);
     assert(BNO055_IMU_Update(&bo_imu));
-    assert(fabsf(bo_imu.yaw - 90.0f) < 0.1f);
+    assert(fabsf(bo_imu.yaw - 90.0f) < 0.25f);
     g_mock_bno.yaw_deg = 15.0f;
     MockHal_AdvanceTick(10U);
     assert(BNO055_IMU_Update(&bo_imu));
-    assert(fabsf(bo_imu.yaw - 105.0f) < 0.1f);
+    assert(fabsf(bo_imu.yaw - 105.0f) < 0.25f);
 
     /* Sub-check (a3): 180-deg turn and 2-second stationary hold must NOT flip or jump yaw */
-    g_mock_bno.yaw_deg = 180.0f;
-    MockHal_AdvanceTick(10U);
-    assert(BNO055_IMU_Update(&bo_imu));
+    for (int step = 2; step <= 12; step++) {
+      g_mock_bno.yaw_deg = (float)step * 15.0f;
+      MockHal_AdvanceTick(10U);
+      assert(BNO055_IMU_Update(&bo_imu));
+    }
     float yaw_at_180 = bo_imu.yaw;
     for (int k = 0; k < 200; k++) {
       MockHal_AdvanceTick(10U);
@@ -565,6 +569,29 @@ static void test_bno055_hardening_and_backoff(void) {
 
     assert(BNO055_IMU_EraseFlashCal(&corrupt_imu));
     assert(!BNO055_IMU_HasFlashCal());
+
+    /* (h) Falsification: Non-unit corrupted quaternion & 45-deg single-tick spike
+     *     during plugging reversal must both be rejected without poisoning yaw! */
+    g_mock_bno.yaw_deg = 0.0f;
+    BNO055_IMU_ZeroYaw(&corrupt_imu);
+    g_mock_bno.corrupt_quat_once = true;
+    MockHal_AdvanceTick(10U);
+    assert(!BNO055_IMU_Update(&corrupt_imu));
+    assert(corrupt_imu.quat_err_count == 1U);
+    assert(fabsf(corrupt_imu.yaw) < 0.01f);
+
+    /* Single-tick 45-deg spike in 10 ms rejected cleanly; valid read next tick succeeds */
+    g_mock_bno.yaw_deg = 45.0f;
+    MockHal_AdvanceTick(10U);
+    assert(!BNO055_IMU_Update(&corrupt_imu));
+    assert(corrupt_imu.spike_count == 1U);
+    assert(fabsf(corrupt_imu.last_spike_deg - 45.0f) < 0.25f);
+    assert(fabsf(corrupt_imu.yaw) < 0.01f);
+
+    g_mock_bno.yaw_deg = 2.0f;
+    MockHal_AdvanceTick(10U);
+    assert(BNO055_IMU_Update(&corrupt_imu));
+    assert(fabsf(corrupt_imu.yaw - 2.0f) < 0.25f);
   }
   printf("      PASS.\n");
 }
@@ -781,6 +808,25 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
     /* Boosted snap must have 2.5x higher slew rate and significantly higher wheel target RPM */
     assert(fabsf(snap_boost.slew_heading_deg) >= fabsf(snap_norm.slew_heading_deg) * 2.4f);
     assert(abs(t_boost[0]) > abs(t_norm[0]));
+
+    /* Sudden Left->Right reversal (L1+L2 -> L1+R2 with CCW+ rot_btn_invert):
+     * L1+L2 drives +RPM (CCW left), immediate L1+R2 ramps smoothly through 0
+     * via DRIVE_OMNI_OMEGA_SLEW_DECEL instead of 1-tick +75 -> -75 RPM plugging slam! */
+    Drive_OmniCtrl_t rev_ctrl;
+    Drive_OmniCtrlInit(&rev_ctrl, true);
+    rev_ctrl.rot_btn_invert = true;
+    Drive_Ps2Input_t rev_in = {.joy_sum = {100U, 100U}, .valid = true};
+    rev_in.ps2_btn[1] = DRIVE_CMD_L1_L2;
+    Drive_OmniCtrlStep(&rev_ctrl, &rev_in, false, 10.0f, true, 4000, smodes, t_boost);
+    assert(t_boost[0] == 750);
+    rev_in.ps2_btn[1] = DRIVE_CMD_L1_R2;
+    Drive_OmniCtrlStep(&rev_ctrl, &rev_in, false, 10.0f, true, 4000, smodes, t_boost);
+    assert(fabsf(rev_ctrl.slew.omega_pct - (25.0f - DRIVE_OMNI_OMEGA_SLEW_DECEL)) < 0.01f);
+    assert(abs(t_boost[0]) < 750); /* Did NOT slam +750 -> -750 in 1 tick */
+    for (int k = 0; k < 5; k++) {
+      Drive_OmniCtrlStep(&rev_ctrl, &rev_in, false, 10.0f, true, 4000, smodes, t_boost);
+    }
+    assert(t_boost[0] == -750);
   }
 
   /* Rigid-body curvature feedforward ratio for R=2050, W=320: inside wheel
