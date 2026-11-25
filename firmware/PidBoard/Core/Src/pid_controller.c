@@ -351,8 +351,10 @@ uint8_t PID_HandleConfigSubcmd(PID_Controller_t *ctrl,
     if ((cmd->value < 0) || (cmd->value > 200000)) {
       return 1U;
     }
+    if ((cmd->value == 0) || (cmd->value != ctrl->cfg.vel_ki_m)) {
+      ctrl->vel_int_err_ms = 0; /* Clear integral when disabling Ki or changing gain */
+    }
     ctrl->cfg.vel_ki_m = cmd->value;
-    ctrl->vel_int_err_ms = 0; /* Instantly clear accumulated integral error */
     return 0U;
 
   case RS485_CFG_SET_VEL_KD_M:
