@@ -135,7 +135,7 @@ void PS2_Update(void)
   uint8_t receive[9] = { 0x00 };
   PS2_Cmd(transmit, receive, 9);
 
-  if ((receive[1] != 0x41U) && (receive[1] != 0x73U))
+  if (((receive[1] != 0x41U) && (receive[1] != 0x73U)) || (receive[2] != 0x5AU))
   {
     ps2_set_neutral(data, 0U, 0U, 0U);
     return;
