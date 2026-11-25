@@ -525,9 +525,9 @@ bool BNO055_IMU_Update(BNO055_IMU_t *imu)
       {
         float dy = BNO055_WrapDeltaDeg(rot.yaw_deg - imu->yaw_prev);
         uint32_t dt_ms = (uint32_t)(now_ms - imu->prev_sample_ms);
-        if ((dt_ms < 100U) && (fabsf(dy) > 35.0f))
+        if ((dt_ms < 25U) && (fabsf(dy) > 45.0f))
         {
-          /* Physically impossible >35 deg jump in <100 ms -> drop corrupted I2C/SHTP sample */
+          /* Physically impossible >1800 deg/s spike in <25 ms -> drop corrupted I2C/SHTP sample */
           imu->err_count++;
           return false;
         }
