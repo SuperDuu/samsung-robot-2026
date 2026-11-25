@@ -560,14 +560,14 @@ int main(void) {
             g_imu_save_cal = 1U;
           } else if (g_imu.connected && !g_estop_latched &&
                      omni_wheels_stopped && (s_auto_cal_phase == 0U)) {
-            if (g_imu.op_mode != BNO055_OPERATION_MODE_NDOF) {
-              (void)BNO055_IMU_EnterAutoCalNDOF(&g_imu);
-            }
             BNO055_IMU_ZeroYaw(&g_imu);
             g_yaw_offset_deg = 0.0f;
             Drive_OmniCtrlZeroHeading(&g_omni_ctrl);
             now_ms = HAL_GetTick();
-            s_auto_cal_phase = 1U;
+            /* In 6-DOF IMU mode (0x08), no spin is needed: go directly to stationary
+             * Gyro ZRO settle (Phase 2) -> Flash save (Phase 3), staying 0.0 deg square! */
+            s_auto_cal_phase =
+                (g_imu.op_mode == BNO055_OPERATION_MODE_IMU) ? 2U : 1U;
             s_auto_cal_phase_ms = now_ms;
             s_auto_cal_grace_until_ms = now_ms + 200U;
             s_auto_cal_settle_ms = 0U;
@@ -621,12 +621,16 @@ int main(void) {
       }
     }
 
-    /* Passive zero-button auto-save: on first run (Flash empty), once robot is
-     * stationary for >= 1.5s with BNO055 Mag==3 & Gyro==3, save to Flash Sector 11
-     * and switch to NDOF_FMC_OFF automatically for all future boots. */
+    /* Passive zero-button auto-save: once Flash is empty and robot sits
+     * stationary >= 1.5s with Gyro==3 (and Mag==3 if in NDOF), save 22B offsets
+     * to Flash Sector 11 automatically for all future boots. */
+    bool passive_cal_ok =
+        (g_imu.op_mode == BNO055_OPERATION_MODE_IMU)
+            ? (g_imu.calib.gyro >= 3U)
+            : ((g_imu.calib.gyro >= 3U) && (g_imu.calib.mag >= 3U));
     if ((s_auto_cal_phase == 0U) && g_imu.connected && (g_imu.chip_id != 0x85U) &&
         !g_imu.cal_saved_to_flash && omni_wheels_stopped && !g_estop_latched &&
-        (g_imu.calib.gyro >= 3U) && (g_imu.calib.mag >= 3U)) {
+        passive_cal_ok) {
       if (s_bno055_idle_cal_ok_ms == 0U) {
         s_bno055_idle_cal_ok_ms = now_ms;
       } else if ((uint32_t)(now_ms - s_bno055_idle_cal_ok_ms) >= 1500U) {

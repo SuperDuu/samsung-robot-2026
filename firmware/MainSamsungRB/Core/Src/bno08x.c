@@ -87,8 +87,8 @@ bool BNO08X_Init(I2C_HandleTypeDef *hi2c, uint8_t addr_7bit,
     HAL_Delay(5);
   }
 
-  /* 1. Build Set Feature Command packet for 9-DOF Rotation Vector
-   * (Report ID 0x05): Accel + Gyro + Magnetometer absolute heading anchor. */
+  /* 1. Build Set Feature Command packet for 6-DOF Game Rotation Vector
+   * (Report ID 0x08): Accel + Gyro only, immune to motor/steel magnetic distortion. */
   uint8_t cmd[21] = {0};
   cmd[0] = 21U;                    /* Packet length LSB */
   cmd[1] = 0U;                     /* Packet length MSB */
@@ -96,7 +96,7 @@ bool BNO08X_Init(I2C_HandleTypeDef *hi2c, uint8_t addr_7bit,
   cmd[3] = s_bno08x_tx_seq++;      /* Sequence */
 
   cmd[4] = BNO08X_CMD_SET_FEATURE;    /* Command 0xFD */
-  cmd[5] = BNO08X_REPORT_ROT_VECTOR;  /* Feature Report ID 0x05 (9-DOF) */
+  cmd[5] = BNO08X_REPORT_GAME_ROT_VEC; /* Feature Report ID 0x08 (6-DOF) */
   cmd[6] = 0U;                        /* Flags */
   cmd[7] = 0U;                        /* Change sensitivity LSB */
   cmd[8] = 0U;                        /* Change sensitivity MSB */
@@ -131,7 +131,7 @@ bool BNO08X_Init(I2C_HandleTypeDef *hi2c, uint8_t addr_7bit,
   cal_cmd[6] = BNO08X_SH2_CMD_ME_CALIBRATE; /* 0x07 */
   cal_cmd[7] = 1U;                          /* Accel cal enable */
   cal_cmd[8] = 1U;                          /* Gyro cal enable */
-  cal_cmd[9] = 1U;                          /* Mag cal ENABLED for 9-DOF */
+  cal_cmd[9] = 0U;                          /* Mag cal DISABLED (6-DOF immune to motor EMI) */
   cal_cmd[10] = 0U; /* Subcommand: Configure ME Calibration */
   (void)HAL_I2C_Master_Transmit(hi2c, (uint16_t)(addr_7bit << 1U), cal_cmd, 16U,
                                 BNO08X_I2C_TIMEOUT_MS);

@@ -243,7 +243,7 @@ static void BNO055_DecodeCalib(BNO055_IMU_t *imu, uint8_t reg_val)
 }
 
 #define BNO055_FLASH_CAL_MAGIC      0x424E3035UL /* "BN05" */
-#define BNO055_FLASH_CAL_VERSION    1U
+#define BNO055_FLASH_CAL_VERSION    2U           /* v2: 6-DOF IMU Accel+Gyro offsets */
 
 typedef struct __attribute__((packed))
 {
@@ -635,7 +635,8 @@ bool BNO055_IMU_InitWithMode(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c, bno055_
   memset(imu->saved_cal_data, 0, sizeof(imu->saved_cal_data));
 
   BNO055_FlashCalRecord_t cal_rec;
-  if (((imu->op_mode == BNO055_OPERATION_MODE_NDOF) ||
+  if (((imu->op_mode == BNO055_OPERATION_MODE_IMU) ||
+       (imu->op_mode == BNO055_OPERATION_MODE_NDOF) ||
        (imu->op_mode == BNO055_OPERATION_MODE_NDOF_FMC_OFF)) &&
       BNO055_FlashCalLoad(&cal_rec))
   {
@@ -696,10 +697,7 @@ bool BNO055_IMU_InitWithMode(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c, bno055_
 
 bool BNO055_IMU_Init(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c)
 {
-  bno055_opmode_t mode = BNO055_IMU_HasFlashCal()
-                             ? BNO055_OPERATION_MODE_NDOF_FMC_OFF
-                             : BNO055_DEFAULT_FUSION_MODE;
-  return BNO055_IMU_InitWithMode(imu, hi2c, mode);
+  return BNO055_IMU_InitWithMode(imu, hi2c, BNO055_DEFAULT_FUSION_MODE);
 }
 
 void BNO055_IMU_SetStationaryHint(BNO055_IMU_t *imu, bool stationary)
@@ -1136,14 +1134,17 @@ bool BNO055_IMU_SaveCalToFlash(BNO055_IMU_t *imu)
     saved_ok = BNO055_FlashCalSave(&rec);
     if (saved_ok)
     {
-      imu->op_mode = BNO055_OPERATION_MODE_NDOF_FMC_OFF;
+      if (imu->op_mode == BNO055_OPERATION_MODE_NDOF)
+      {
+        imu->op_mode = BNO055_OPERATION_MODE_NDOF_FMC_OFF;
+      }
       imu->has_saved_cal = true;
       imu->cal_saved_to_flash = true;
       memcpy(imu->saved_cal_data, rec.cal_data, BNO055_FLASH_CAL_DATA_LEN);
     }
   }
 
-  /* Restore operation mode into NDOF_FMC_OFF (if saved) without disturbing yaw_total */
+  /* Restore operation mode (6-DOF IMU or NDOF_FMC_OFF) without disturbing yaw_total */
   bno055_setOperationMode(imu->op_mode);
   bno055_delay(30);
   imu->resync_yaw_prev = true;
@@ -1173,7 +1174,7 @@ bool BNO055_IMU_EraseFlashCal(BNO055_IMU_t *imu)
 #else
       bno055_delay(10);
 #endif
-      (void)BNO055_IMU_InitWithMode(imu, _bno055_i2c_port, BNO055_OPERATION_MODE_NDOF);
+      (void)BNO055_IMU_InitWithMode(imu, _bno055_i2c_port, BNO055_DEFAULT_FUSION_MODE);
     }
   }
   return erased;
