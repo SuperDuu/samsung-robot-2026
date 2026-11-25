@@ -490,6 +490,18 @@ int main(void) {
     static uint32_t s_imu_cal_led_start_ms = 0U;
     static uint32_t s_imu_cal_ok_since_ms = 0U;
 
+    /* BNO055 one-button in-place auto-calibration + Flash Sector 11 persistence:
+     *   0 = idle (Flash auto-loaded at boot -> NDOF_FMC_OFF; passive save if empty)
+     *   1 = Phase 1: gentle in-place spin (~40 RPM) >=360 deg until mag>=2..3
+     *   2 = Phase 2: stationary brake hold until gyro==3 settled
+     *   3 = Phase 3: write 22B offsets to Flash Sector 11 + lock NDOF_FMC_OFF (0x0B)
+     *   4 = Phase 4: closed-loop PD rotate back to 0.0 deg square on field */
+    static uint8_t s_auto_cal_phase = 0U;
+    static uint32_t s_auto_cal_phase_ms = 0U;
+    static uint32_t s_auto_cal_settle_ms = 0U;
+    static uint32_t s_auto_cal_grace_until_ms = 0U;
+    static uint32_t s_bno055_idle_cal_ok_ms = 0U;
+
     /* PS2 L3 zeros field heading; Select clears PidBoard faults; R1 toggles clamp
      * via pure uint8_t exact equality + 2-frame RF confirmation (immune to L1 EMI) */
     static uint8_t s_r1_confirm_cnt = 0U;
@@ -532,9 +544,9 @@ int main(void) {
       g_prev_select_btn = select_now;
       g_prev_r1_btn = r1_now;
 
-      /* BNO085 9-DOF Flash calibration buttons (exact uint8_t command codes):
-       *  - Hold SELECT (140) >= 1.0s -> Save DCD into BNO085 internal Flash
-       *  - Hold START  (146) >= 2.0s -> Clear DCD & reset BNO085 to recalibrate */
+      /* IMU Flash calibration buttons (exact uint8_t command codes):
+       *  - Hold SELECT (140) >= 1.0s -> BNO085: Save DCD | BNO055: Auto-spin cal & return square
+       *  - Hold START  (146) >= 2.0s -> Clear saved calibration Flash & recalibrate */
       static uint32_t s_sel_hold_start_ms = 0U;
       static bool s_sel_hold_fired = false;
       bool sel_only = (btn_cmd == DRIVE_CMD_SELECT);
@@ -544,7 +556,24 @@ int main(void) {
         } else if (!s_sel_hold_fired &&
                    ((uint32_t)(now_ms - s_sel_hold_start_ms) >= 1000U)) {
           s_sel_hold_fired = true;
-          g_imu_save_cal = 1U;
+          if (g_imu.chip_id == 0x85U) {
+            g_imu_save_cal = 1U;
+          } else if (g_imu.connected && !g_estop_latched &&
+                     omni_wheels_stopped && (s_auto_cal_phase == 0U)) {
+            if (g_imu.op_mode != BNO055_OPERATION_MODE_NDOF) {
+              (void)BNO055_IMU_EnterAutoCalNDOF(&g_imu);
+            }
+            BNO055_IMU_ZeroYaw(&g_imu);
+            g_yaw_offset_deg = 0.0f;
+            Drive_OmniCtrlZeroHeading(&g_omni_ctrl);
+            now_ms = HAL_GetTick();
+            s_auto_cal_phase = 1U;
+            s_auto_cal_phase_ms = now_ms;
+            s_auto_cal_grace_until_ms = now_ms + 200U;
+            s_auto_cal_settle_ms = 0U;
+            s_imu_cal_led_state = 1U;
+            s_imu_cal_led_start_ms = now_ms;
+          }
         }
       } else {
         s_sel_hold_start_ms = 0U;
@@ -573,8 +602,42 @@ int main(void) {
       g_prev_r1_btn = 0U;
     }
 
-    /* Execute pending BNO08x DCD Save / Clear (triggered by SELECT/START hold
-     * or Live Expressions) */
+    /* Safety abort for BNO055 auto-calibration: any joystick deflection,
+     * non-SELECT button, E-STOP, IMU fault, or RF link drop returns to manual */
+    if (s_auto_cal_phase != 0U) {
+      bool joy_moved =
+          (g_tdk_cmd.joy_sum[0] >= 240U) || (g_tdk_cmd.joy_sum[0] < 80U) ||
+          (g_tdk_cmd.joy_sum[0] > 120U) || (g_tdk_cmd.joy_sum[1] < 80U) ||
+          (g_tdk_cmd.joy_sum[1] > 120U);
+      bool other_btn =
+          ps2_valid && (btn_cmd != DRIVE_CMD_NONE) && (btn_cmd != DRIVE_CMD_SELECT);
+      bool grace_over = ((int32_t)(now_ms - s_auto_cal_grace_until_ms) >= 0);
+      if (g_estop_latched || !g_imu.connected || !g_imu.healthy ||
+          joy_moved || other_btn || (grace_over && !ps2_valid)) {
+        s_auto_cal_phase = 0U;
+        s_auto_cal_settle_ms = 0U;
+        s_imu_cal_led_state = 0U;
+        CD4067_UpdateLeds(now_ms);
+      }
+    }
+
+    /* Passive zero-button auto-save: on first run (Flash empty), once robot is
+     * stationary for >= 1.5s with BNO055 Mag==3 & Gyro==3, save to Flash Sector 11
+     * and switch to NDOF_FMC_OFF automatically for all future boots. */
+    if ((s_auto_cal_phase == 0U) && g_imu.connected && (g_imu.chip_id != 0x85U) &&
+        !g_imu.cal_saved_to_flash && omni_wheels_stopped && !g_estop_latched &&
+        (g_imu.calib.gyro >= 3U) && (g_imu.calib.mag >= 3U)) {
+      if (s_bno055_idle_cal_ok_ms == 0U) {
+        s_bno055_idle_cal_ok_ms = now_ms;
+      } else if ((uint32_t)(now_ms - s_bno055_idle_cal_ok_ms) >= 1500U) {
+        s_bno055_idle_cal_ok_ms = 0U;
+        g_imu_save_cal = 1U;
+      }
+    } else {
+      s_bno055_idle_cal_ok_ms = 0U;
+    }
+
+    /* Execute pending IMU Flash Save / Clear (BNO08x DCD or BNO055 Sector 11) */
     if ((g_imu_save_cal != 0U) && g_imu.connected && (g_imu.chip_id == 0x85U)) {
       g_imu_save_cal = 0U;
       if (BNO08X_SaveCalibration(&hi2c3, g_imu.i2c_addr)) {
@@ -586,6 +649,24 @@ int main(void) {
         s_imu_cal_led_state = 2U; /* Trigger chasing LEDs L1..L11 */
         s_imu_cal_led_start_ms = now_ms;
       }
+    } else if ((g_imu_save_cal != 0U) && g_imu.connected &&
+               (g_imu.chip_id != 0x85U) && omni_wheels_stopped) {
+      g_imu_save_cal = 0U;
+      RS485_MultiCmd_t brake_cmd = {0};
+      brake_cmd.num_wheels = DRIVE_OMNI_WHEEL_COUNT;
+      for (uint8_t i = 0U; i < DRIVE_OMNI_WHEEL_COUNT; i++) {
+        brake_cmd.wheels[i].mode = RS485_WHEEL_BRAKE;
+      }
+      (void)RS485_SendMultiCmd(&g_rs485, &brake_cmd, now_ms);
+      Servo_StopAll360();
+      if (BNO055_IMU_SaveCalToFlash(&g_imu)) {
+        g_imu_cal_saved_cnt++;
+        s_imu_cal_led_state = 2U; /* Chasing L1..L11 LEDs confirm Flash save */
+        s_imu_cal_led_start_ms = HAL_GetTick();
+      }
+      now_ms = HAL_GetTick();
+      g_last_rs485_tx_ms = now_ms;
+      s_auto_cal_grace_until_ms = now_ms + 400U;
     }
     if ((g_imu_clear_cal != 0U) && g_imu.connected &&
         (g_imu.chip_id == 0x85U)) {
@@ -605,6 +686,29 @@ int main(void) {
         s_imu_cal_led_start_ms = now_ms;
         s_imu_cal_ok_since_ms = 0U;
       }
+    } else if ((g_imu_clear_cal != 0U) && g_imu.connected &&
+               (g_imu.chip_id != 0x85U) && omni_wheels_stopped) {
+      g_imu_clear_cal = 0U;
+      s_auto_cal_phase = 0U;
+      RS485_MultiCmd_t brake_cmd = {0};
+      brake_cmd.num_wheels = DRIVE_OMNI_WHEEL_COUNT;
+      for (uint8_t i = 0U; i < DRIVE_OMNI_WHEEL_COUNT; i++) {
+        brake_cmd.wheels[i].mode = RS485_WHEEL_BRAKE;
+      }
+      (void)RS485_SendMultiCmd(&g_rs485, &brake_cmd, now_ms);
+      Servo_StopAll360();
+      if (BNO055_IMU_EraseFlashCal(&g_imu)) {
+        g_imu_cal_cleared_cnt++;
+        BNO055_IMU_ZeroYaw(&g_imu);
+        g_yaw_offset_deg = 0.0f;
+        Drive_OmniCtrlZeroHeading(&g_omni_ctrl);
+        s_imu_cal_led_state = 1U;
+        s_imu_cal_led_start_ms = HAL_GetTick();
+        s_imu_cal_ok_since_ms = 0U;
+      }
+      now_ms = HAL_GetTick();
+      g_last_rs485_tx_ms = now_ms;
+      s_auto_cal_grace_until_ms = now_ms + 400U;
     }
 
     /* Render L1..L11 onboard LED bar (non-blocking) */
@@ -615,20 +719,20 @@ int main(void) {
           (((elapsed_ms / 200U) & 1U) == 0U); /* 400 ms full blink period */
       CD4067_SetAllLineLeds(blink_on);
 
-      /* 6-DOF Game Rotation Vector (0x08): keep robot STILL on flat floor!
-       * Auto-saves Gyro+Accel DCD to Flash once calib.gyro >= 2 for 300 ms
-       * (after >= 2.0s stillness) or after 4.5s stillness fallback. */
-      bool cal_ready = g_imu.connected &&
-                       (((elapsed_ms >= 2000U) && (g_imu.calib.gyro >= 2U)) ||
-                        (elapsed_ms >= 4500U));
-      if (cal_ready) {
-        if (s_imu_cal_ok_since_ms == 0U) {
-          s_imu_cal_ok_since_ms = now_ms;
-        } else if ((uint32_t)(now_ms - s_imu_cal_ok_since_ms) >= 300U) {
-          g_imu_save_cal = 1U;
+      /* 6-DOF Game Rotation Vector (0x08) on BNO085 only */
+      if (g_imu.chip_id == 0x85U) {
+        bool cal_ready = g_imu.connected &&
+                         (((elapsed_ms >= 2000U) && (g_imu.calib.gyro >= 2U)) ||
+                          (elapsed_ms >= 4500U));
+        if (cal_ready) {
+          if (s_imu_cal_ok_since_ms == 0U) {
+            s_imu_cal_ok_since_ms = now_ms;
+          } else if ((uint32_t)(now_ms - s_imu_cal_ok_since_ms) >= 300U) {
+            g_imu_save_cal = 1U;
+          }
+        } else {
+          s_imu_cal_ok_since_ms = 0U;
         }
-      } else {
-        s_imu_cal_ok_since_ms = 0U;
       }
     } else if (s_imu_cal_led_state == 2U) {
       int32_t dt_signed = (int32_t)(now_ms - s_imu_cal_led_start_ms);
@@ -790,12 +894,89 @@ int main(void) {
       bool imu_ok = g_imu.connected && g_imu.healthy;
       float yaw_rel = imu_ok ? (g_imu.yaw - g_yaw_offset_deg) : 0.0f;
 
-      Drive_OmniCtrlStep(&g_omni_ctrl, &ps2_in, g_estop_latched, yaw_rel,
-                         imu_ok, DRIVE_DEFAULT_MAX_RPMX10, modes, targets);
+      if (s_auto_cal_phase == 1U) {
+        /* Phase 1: Spin gently in place (~40 RPM) across >= 360 deg until Mag calibrates */
+        for (uint8_t i = 0U; i < DRIVE_OMNI_WHEEL_COUNT; i++) {
+          modes[i] = RS485_WHEEL_VELOCITY;
+          targets[i] = 400;
+        }
+        float abs_yaw = fabsf(yaw_rel);
+        uint32_t elapsed = (uint32_t)(now_ms - s_auto_cal_phase_ms);
+        if (((abs_yaw >= 360.0f) && (g_imu.calib.mag >= 3U)) ||
+            ((elapsed >= 5500U) && (abs_yaw >= 360.0f) && (g_imu.calib.mag >= 2U)) ||
+            (elapsed >= 8500U)) {
+          s_auto_cal_phase = 2U;
+          s_auto_cal_phase_ms = now_ms;
+          s_auto_cal_settle_ms = 0U;
+        }
+      } else if (s_auto_cal_phase == 2U) {
+        /* Phase 2: Hold completely still so BNO055 locks Gyro ZRO (gyro == 3) */
+        for (uint8_t i = 0U; i < DRIVE_OMNI_WHEEL_COUNT; i++) {
+          modes[i] = RS485_WHEEL_BRAKE;
+          targets[i] = 0;
+        }
+        uint32_t elapsed = (uint32_t)(now_ms - s_auto_cal_phase_ms);
+        if ((elapsed >= 1200U) && ((g_imu.calib.gyro >= 3U) || (elapsed >= 2500U))) {
+          s_auto_cal_phase = 3U;
+        }
+      } else if (s_auto_cal_phase == 3U) {
+        /* Phase 3: Persist 22B offsets to Flash Sector 11 & switch to NDOF_FMC_OFF */
+        RS485_MultiCmd_t brake_cmd = {0};
+        brake_cmd.num_wheels = DRIVE_OMNI_WHEEL_COUNT;
+        for (uint8_t i = 0U; i < DRIVE_OMNI_WHEEL_COUNT; i++) {
+          modes[i] = RS485_WHEEL_BRAKE;
+          targets[i] = 0;
+          brake_cmd.wheels[i].mode = RS485_WHEEL_BRAKE;
+        }
+        (void)RS485_SendMultiCmd(&g_rs485, &brake_cmd, now_ms);
+        Servo_StopAll360();
+        if (BNO055_IMU_SaveCalToFlash(&g_imu)) {
+          g_imu_cal_saved_cnt++;
+        }
+        now_ms = HAL_GetTick();
+        g_last_rs485_tx_ms = now_ms;
+        s_auto_cal_grace_until_ms = now_ms + 400U;
+        g_omni_ctrl.field_centric = true;
+        g_omni_ctrl.heading_hold = true;
+        g_omni_ctrl.target_heading_deg = 0.0f;
+        g_omni_ctrl.slew_heading_deg = Drive_WrapAngleDeg(g_imu.yaw - g_yaw_offset_deg);
+        g_omni_ctrl.heading_settled = false;
+        s_auto_cal_phase = 4U;
+        s_auto_cal_phase_ms = now_ms;
+        s_auto_cal_settle_ms = 0U;
+      } else if (s_auto_cal_phase == 4U) {
+        /* Phase 4: Smoothly rotate back to original 0.0 deg square field orientation */
+        Drive_Ps2Input_t rot_in = {0};
+        rot_in.joy_sum[0] = 100U;
+        rot_in.joy_sum[1] = 100U;
+        rot_in.valid = true;
+        Drive_OmniCtrlStep(&g_omni_ctrl, &rot_in, false, yaw_rel,
+                           imu_ok, DRIVE_DEFAULT_MAX_RPMX10, modes, targets);
+        uint32_t elapsed = (uint32_t)(now_ms - s_auto_cal_phase_ms);
+        if (fabsf(Drive_WrapAngleDeg(0.0f - yaw_rel)) < 1.5f) {
+          if (s_auto_cal_settle_ms == 0U) {
+            s_auto_cal_settle_ms = now_ms;
+          } else if ((uint32_t)(now_ms - s_auto_cal_settle_ms) >= 250U) {
+            s_auto_cal_phase = 0U;
+            s_imu_cal_led_state = 2U;
+            s_imu_cal_led_start_ms = now_ms;
+          }
+        } else {
+          s_auto_cal_settle_ms = 0U;
+        }
+        if ((s_auto_cal_phase == 4U) && (elapsed >= 2500U)) {
+          s_auto_cal_phase = 0U;
+          s_imu_cal_led_state = 2U;
+          s_imu_cal_led_start_ms = now_ms;
+        }
+      } else {
+        Drive_OmniCtrlStep(&g_omni_ctrl, &ps2_in, g_estop_latched, yaw_rel,
+                           imu_ok, DRIVE_DEFAULT_MAX_RPMX10, modes, targets);
 
-      if (!ps2_valid && (now_ms < s_test_motor_until_ms)) {
-        modes[0] = RS485_WHEEL_VELOCITY;
-        targets[0] = s_test_motor_rpm;
+        if (!ps2_valid && (now_ms < s_test_motor_until_ms)) {
+          modes[0] = RS485_WHEEL_VELOCITY;
+          targets[0] = s_test_motor_rpm;
+        }
       }
 
       RS485_MultiCmd_t mcmd = {0};

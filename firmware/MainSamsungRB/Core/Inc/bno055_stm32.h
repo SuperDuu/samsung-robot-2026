@@ -21,6 +21,8 @@
 #define BNO055_RECOVER_BACKOFF_MS     250U
 #define BNO055_CALIB_POLL_DIV         20U
 #define BNO055_DEFAULT_FUSION_MODE    BNO055_OPERATION_MODE_NDOF
+#define BNO055_FLASH_CAL_DATA_LEN     22U
+#define BNO055_FLASH_CAL_SECTOR_ADDR  0x080E0000UL
 #define BNO055_DRIFT_SETTLE_MS        500U
 #define BNO055_DRIFT_WINDOW_MS        1000U
 #define BNO055_DRIFT_MAX_TICK_DEG     0.35f
@@ -70,6 +72,9 @@ typedef struct
   float                      still_raw_deg;
   float                      yaw_bias_dps;
   bool                       software_drift_comp; /* true = enable software ZRO drift estimator (default false) */
+  bool                       has_saved_cal;       /* true = 22B BNO055 cal profile active in RAM/Flash */
+  bool                       cal_saved_to_flash;  /* true = 22B BNO055 cal persisted to STM32 Flash Sector 11 */
+  uint8_t                    saved_cal_data[BNO055_FLASH_CAL_DATA_LEN];
 } BNO055_IMU_t;
 
 extern I2C_HandleTypeDef *_bno055_i2c_port;
@@ -90,6 +95,13 @@ void BNO055_IMU_SetStationaryHint(BNO055_IMU_t *imu, bool stationary);
 bool BNO055_IMU_Update(BNO055_IMU_t *imu);
 void BNO055_IMU_ZeroYaw(BNO055_IMU_t *imu);
 void BNO055_IMU_ZeroAll(BNO055_IMU_t *imu);
+bool BNO055_IMU_HasFlashCal(void);
+bool BNO055_IMU_EnterAutoCalNDOF(BNO055_IMU_t *imu);
+bool BNO055_IMU_SaveCalToFlash(BNO055_IMU_t *imu);
+bool BNO055_IMU_EraseFlashCal(BNO055_IMU_t *imu);
+#ifdef UNIT_TEST_HOST
+void BNO055_IMU_FlashCorruptTestWord(uint32_t byte_offset, uint8_t value);
+#endif
 
 #ifdef __cplusplus
   }

@@ -644,6 +644,20 @@ HAL_StatusTypeDef HAL_I2C_Mem_Write(I2C_HandleTypeDef *hi2c, uint16_t DevAddress
       {
         g_mock_bno.opr_mode = pData[0];
       }
+      else if (MemAddress == 0x3FU) /* SYS_TRIGGER */
+      {
+        if ((pData[0] & 0x20U) != 0U)
+        {
+          g_mock_bno.opr_mode = 0x00U;
+          g_mock_bno.calib_stat = 0x00U;
+          memset(g_mock_bno.cal_data, 0, sizeof(g_mock_bno.cal_data));
+        }
+      }
+      else if ((MemAddress >= 0x55U) && ((MemAddress + Size) <= 0x6BU))
+      {
+        memcpy(&g_mock_bno.cal_data[MemAddress - 0x55U], pData, Size);
+        g_mock_bno.cal_writes++;
+      }
     }
     hi2c->ErrorCode = HAL_I2C_ERROR_NONE;
     return HAL_OK;
@@ -697,7 +711,7 @@ HAL_StatusTypeDef HAL_I2C_Mem_Read(I2C_HandleTypeDef *hi2c, uint16_t DevAddress,
       return HAL_ERROR;
     }
 
-    uint8_t page0[64];
+    uint8_t page0[0x6BU];
     memset(page0, 0, sizeof(page0));
     page0[0x00] = 0xA0U; /* BNO055 CHIP_ID */
     page0[0x07] = g_mock_bno.page;
@@ -710,6 +724,11 @@ HAL_StatusTypeDef HAL_I2C_Mem_Read(I2C_HandleTypeDef *hi2c, uint16_t DevAddress,
     }
     page0[0x35] = g_mock_bno.calib_stat;
     page0[0x3D] = g_mock_bno.opr_mode;
+    memcpy(&page0[0x55], g_mock_bno.cal_data, sizeof(g_mock_bno.cal_data));
+    if ((MemAddress >= 0x55U) && ((MemAddress + Size) <= 0x6BU))
+    {
+      g_mock_bno.cal_reads++;
+    }
 
     for (uint16_t i = 0U; i < Size; i++)
     {

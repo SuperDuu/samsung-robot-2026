@@ -323,6 +323,9 @@ typedef struct
   float    yaw_deg;
   float    roll_deg;
   float    pitch_deg;
+  uint8_t  cal_data[22];
+  uint32_t cal_writes;
+  uint32_t cal_reads;
   uint32_t i2c_tx_count;
   uint32_t i2c_rx_count;
   uint32_t nack_remaining;

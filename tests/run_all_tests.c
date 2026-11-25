@@ -473,6 +473,99 @@ static void test_bno055_hardening_and_backoff(void) {
     assert(drift_imu.yaw_bias_dps == 0.0f);
     assert(drift_imu.still_win_ms == 0U);
   }
+
+  /* (e) Flash Sector 11 22B calibration save, NDOF -> NDOF_FMC_OFF promotion,
+   *     continuous yaw preservation, cold-boot reload, brownout 22B reload,
+   *     and CRC-32 corruption falsification */
+  {
+    MockHal_ResetAll();
+    (void)BNO055_IMU_EraseFlashCal(NULL);
+    assert(!BNO055_IMU_HasFlashCal());
+
+    g_mock_bno.present = true;
+    g_mock_bno.yaw_deg = 0.0f;
+    g_mock_bno.calib_stat = 0xC0U; /* sys=3, mag=0 */
+    I2C_HandleTypeDef hi2c3 = {.Instance = I2C3};
+    BNO055_IMU_t cal_imu;
+    assert(BNO055_IMU_Init(&cal_imu, &hi2c3));
+    assert(cal_imu.op_mode == BNO055_OPERATION_MODE_NDOF);
+    assert(!cal_imu.has_saved_cal);
+
+    /* Simulate +380 deg auto-spin calibration and populate distinct 22B profile */
+    for (int step = 1; step <= 38; step++) {
+      MockHal_AdvanceTick(20U);
+      g_mock_bno.yaw_deg = fmodf((float)step * 10.0f, 360.0f);
+      assert(BNO055_IMU_Update(&cal_imu));
+    }
+    assert(fabsf(cal_imu.yaw - 380.0f) < 0.25f);
+
+    uint8_t expected22[22];
+    for (uint8_t i = 0U; i < 22U; i++) {
+      expected22[i] = (uint8_t)(0x11U + i * 3U);
+      g_mock_bno.cal_data[i] = expected22[i];
+    }
+    g_mock_bno.calib_stat = 0xFFU; /* sys=3, gyr=3, acc=3, mag=3 */
+    MockHal_AdvanceTick(100U);
+    assert(BNO055_IMU_Update(&cal_imu));
+
+    /* Save to Flash -> promotes to NDOF_FMC_OFF while resetting raw quat yaw->0 */
+    assert(BNO055_IMU_SaveCalToFlash(&cal_imu));
+    assert(BNO055_IMU_HasFlashCal());
+    assert(cal_imu.has_saved_cal);
+    assert(cal_imu.cal_saved_to_flash);
+    assert(cal_imu.op_mode == BNO055_OPERATION_MODE_NDOF_FMC_OFF);
+    assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_NDOF_FMC_OFF);
+    assert(memcmp(cal_imu.saved_cal_data, expected22, 22U) == 0);
+
+    /* Simulate BNO055 resetting raw yaw->0 after mode switch: unwrapped yaw_rel MUST stay ~380 deg! */
+    g_mock_bno.yaw_deg = 0.0f;
+    MockHal_AdvanceTick(10U);
+    assert(BNO055_IMU_Update(&cal_imu));
+    assert(fabsf(cal_imu.yaw - 380.0f) < 0.25f);
+    assert(fabsf(Drive_WrapAngleDeg(0.0f - cal_imu.yaw) - (-20.0f)) < 0.25f);
+
+    /* (f) Cold power-on reboot with blank chip RAM: auto-loads 22B & enters NDOF_FMC_OFF */
+    MockHal_ResetAll();
+    g_mock_bno.present = true;
+    memset(g_mock_bno.cal_data, 0, sizeof(g_mock_bno.cal_data));
+    BNO055_IMU_t boot2_imu;
+    assert(BNO055_IMU_Init(&boot2_imu, &hi2c3));
+    assert(boot2_imu.op_mode == BNO055_OPERATION_MODE_NDOF_FMC_OFF);
+    assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_NDOF_FMC_OFF);
+    assert(boot2_imu.has_saved_cal);
+    assert(g_mock_bno.cal_writes >= 22U);
+    assert(memcmp(g_mock_bno.cal_data, expected22, 22U) == 0);
+
+    /* Brownout wipe resets both OPR_MODE->0x00 and BNO055 RAM offsets->0x00:
+     * CheckAndRestoreMode must reload all 22B offsets AND restore NDOF_FMC_OFF! */
+    g_mock_bno.opr_mode = 0x00U;
+    memset(g_mock_bno.cal_data, 0, sizeof(g_mock_bno.cal_data));
+    MockHal_AdvanceTick(200U); /* Trigger 5 Hz status poll immediately */
+    assert(BNO055_IMU_Update(&boot2_imu));
+    assert(boot2_imu.mode_resets == 1U);
+    assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_NDOF_FMC_OFF);
+    assert(memcmp(g_mock_bno.cal_data, expected22, 22U) == 0);
+
+    /* EnterAutoCalNDOF switches calibrated chip back to NDOF for new-venue respin */
+    assert(BNO055_IMU_EnterAutoCalNDOF(&boot2_imu));
+    assert(boot2_imu.op_mode == BNO055_OPERATION_MODE_NDOF);
+    assert(!boot2_imu.cal_saved_to_flash);
+
+    /* (g) Falsification: corrupting Flash byte rejects bad CRC-32 and falls back to NDOF */
+    BNO055_IMU_FlashCorruptTestWord(12U, 0xAAU);
+    assert(!BNO055_IMU_HasFlashCal());
+    MockHal_ResetAll();
+    g_mock_bno.present = true;
+    memset(g_mock_bno.cal_data, 0x5AU, sizeof(g_mock_bno.cal_data));
+    BNO055_IMU_t corrupt_imu;
+    assert(BNO055_IMU_Init(&corrupt_imu, &hi2c3));
+    assert(corrupt_imu.op_mode == BNO055_OPERATION_MODE_NDOF);
+    assert(!corrupt_imu.has_saved_cal);
+    assert(g_mock_bno.cal_writes == 0U);
+
+    assert(BNO055_IMU_EraseFlashCal(&corrupt_imu));
+    assert(!BNO055_IMU_HasFlashCal());
+  }
   printf("      PASS.\n");
 }
 

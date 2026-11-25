@@ -13,6 +13,7 @@
 
 #include "bno055_stm32.h"
 #include <math.h>
+#include <stddef.h>
 #include <string.h>
 
 #ifndef M_PI
@@ -241,6 +242,207 @@ static void BNO055_DecodeCalib(BNO055_IMU_t *imu, uint8_t reg_val)
   imu->calib.mag = (uint8_t)(reg_val & 0x03U);
 }
 
+#define BNO055_FLASH_CAL_MAGIC      0x424E3035UL /* "BN05" */
+#define BNO055_FLASH_CAL_VERSION    1U
+
+typedef struct __attribute__((packed))
+{
+  uint32_t magic;
+  uint16_t version;
+  uint8_t  valid_flags;
+  uint8_t  reserved;
+  uint8_t  cal_data[BNO055_FLASH_CAL_DATA_LEN];
+  uint16_t pad;
+  uint32_t crc32;
+} BNO055_FlashCalRecord_t;
+
+#ifdef UNIT_TEST_HOST
+static uint8_t s_mock_bno_flash[sizeof(BNO055_FlashCalRecord_t)];
+static bool    s_mock_bno_flash_inited = false;
+
+static const uint8_t *BNO055_FlashPtr(void)
+{
+  if (!s_mock_bno_flash_inited)
+  {
+    memset(s_mock_bno_flash, 0xFF, sizeof(s_mock_bno_flash));
+    s_mock_bno_flash_inited = true;
+  }
+  return s_mock_bno_flash;
+}
+
+void BNO055_IMU_FlashCorruptTestWord(uint32_t byte_offset, uint8_t value)
+{
+  (void)BNO055_FlashPtr();
+  if (byte_offset < (uint32_t)sizeof(s_mock_bno_flash))
+  {
+    s_mock_bno_flash[byte_offset] = value;
+  }
+}
+#else
+static const uint8_t *BNO055_FlashPtr(void)
+{
+  return (const uint8_t *)(uintptr_t)BNO055_FLASH_CAL_SECTOR_ADDR;
+}
+#endif
+
+static uint32_t BNO055_FlashCrc32(const uint8_t *data, uint32_t len)
+{
+  uint32_t crc = 0xFFFFFFFFUL;
+  for (uint32_t i = 0U; i < len; i++)
+  {
+    crc ^= (uint32_t)data[i];
+    for (uint8_t b = 0U; b < 8U; b++)
+    {
+      if ((crc & 1UL) != 0UL)
+      {
+        crc = (crc >> 1U) ^ 0xEDB88320UL;
+      }
+      else
+      {
+        crc >>= 1U;
+      }
+    }
+  }
+  return crc ^ 0xFFFFFFFFUL;
+}
+
+static bool BNO055_FlashValidate(const BNO055_FlashCalRecord_t *rec)
+{
+  if (rec == NULL)
+  {
+    return false;
+  }
+  if ((rec->magic != BNO055_FLASH_CAL_MAGIC) || (rec->version != BNO055_FLASH_CAL_VERSION))
+  {
+    return false;
+  }
+  uint32_t expected = BNO055_FlashCrc32((const uint8_t *)rec,
+                                        (uint32_t)offsetof(BNO055_FlashCalRecord_t, crc32));
+  return (rec->crc32 == expected);
+}
+
+static bool BNO055_FlashCalLoad(BNO055_FlashCalRecord_t *out)
+{
+  if (out == NULL)
+  {
+    return false;
+  }
+  BNO055_FlashCalRecord_t tmp;
+  memcpy(&tmp, BNO055_FlashPtr(), sizeof(tmp));
+  if (!BNO055_FlashValidate(&tmp))
+  {
+    return false;
+  }
+  *out = tmp;
+  return true;
+}
+
+static bool BNO055_FlashCalErase(void)
+{
+#ifdef UNIT_TEST_HOST
+  memset(s_mock_bno_flash, 0xFF, sizeof(s_mock_bno_flash));
+  s_mock_bno_flash_inited = true;
+  return true;
+#else
+  if (HAL_FLASH_Unlock() != HAL_OK)
+  {
+    return false;
+  }
+
+  __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
+                         FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
+
+  FLASH_EraseInitTypeDef erase = {0};
+  erase.TypeErase    = FLASH_TYPEERASE_SECTORS;
+  erase.Banks        = FLASH_BANK_1;
+  erase.Sector       = FLASH_SECTOR_11;
+  erase.NbSectors    = 1U;
+  erase.VoltageRange = FLASH_VOLTAGE_RANGE_3;
+
+  uint32_t sector_err = 0U;
+  HAL_StatusTypeDef st = HAL_FLASHEx_Erase(&erase, &sector_err);
+  (void)HAL_FLASH_Lock();
+  return (st == HAL_OK) && (sector_err == 0xFFFFFFFFUL);
+#endif
+}
+
+static bool BNO055_FlashCalSave(const BNO055_FlashCalRecord_t *in)
+{
+  if (in == NULL)
+  {
+    return false;
+  }
+
+  BNO055_FlashCalRecord_t staged = *in;
+  staged.magic    = BNO055_FLASH_CAL_MAGIC;
+  staged.version  = BNO055_FLASH_CAL_VERSION;
+  staged.reserved = 0U;
+  staged.pad      = 0U;
+  staged.crc32    = BNO055_FlashCrc32((const uint8_t *)&staged,
+                                      (uint32_t)offsetof(BNO055_FlashCalRecord_t, crc32));
+
+#ifdef UNIT_TEST_HOST
+  (void)BNO055_FlashCalErase();
+  memcpy(s_mock_bno_flash, &staged, sizeof(staged));
+#else
+  if (HAL_FLASH_Unlock() != HAL_OK)
+  {
+    return false;
+  }
+
+  __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
+                         FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
+
+  FLASH_EraseInitTypeDef erase = {0};
+  erase.TypeErase    = FLASH_TYPEERASE_SECTORS;
+  erase.Banks        = FLASH_BANK_1;
+  erase.Sector       = FLASH_SECTOR_11;
+  erase.NbSectors    = 1U;
+  erase.VoltageRange = FLASH_VOLTAGE_RANGE_3;
+
+  uint32_t sector_err = 0U;
+  HAL_StatusTypeDef st = HAL_FLASHEx_Erase(&erase, &sector_err);
+  if ((st != HAL_OK) || (sector_err != 0xFFFFFFFFUL))
+  {
+    (void)HAL_FLASH_Lock();
+    return false;
+  }
+
+  uint32_t words[sizeof(staged) / sizeof(uint32_t)];
+  memcpy(words, &staged, sizeof(staged));
+  uint32_t num_words = (uint32_t)(sizeof(staged) / sizeof(uint32_t));
+  for (uint32_t w = 0U; w < num_words; w++)
+  {
+    uint32_t addr = BNO055_FLASH_CAL_SECTOR_ADDR + (w * 4U);
+    if (HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, addr, words[w]) != HAL_OK)
+    {
+      (void)HAL_FLASH_Lock();
+      return false;
+    }
+  }
+
+  (void)HAL_FLASH_Lock();
+#endif
+
+  BNO055_FlashCalRecord_t verify;
+  memcpy(&verify, BNO055_FlashPtr(), sizeof(verify));
+  return (memcmp(&staged, &verify, sizeof(staged)) == 0);
+}
+
+static bool BNO055_WriteCalProfile22(const uint8_t cal22[BNO055_FLASH_CAL_DATA_LEN])
+{
+  bno055_setPage(0U);
+  for (uint8_t i = 0U; i < BNO055_FLASH_CAL_DATA_LEN; i++)
+  {
+    bno055_writeData((uint8_t)(BNO055_ACC_OFFSET_X_LSB + i), cal22[i]);
+    if (_bno055_last_status != HAL_OK)
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
 static bool BNO055_CheckAndRestoreMode(BNO055_IMU_t *imu, bool *mode_was_reset)
 {
   uint8_t status_buf[9] = {0};
@@ -257,7 +459,12 @@ static bool BNO055_CheckAndRestoreMode(BNO055_IMU_t *imu, bool *mode_was_reset)
   uint8_t cur_mode = (uint8_t)(status_buf[8] & 0x0FU);
   if (cur_mode != (uint8_t)imu->op_mode)
   {
-    /* Silent brown-out / soft-reset dropped BNO055 back to CONFIG (0x00): restore without yaw jump */
+    /* Silent brown-out / soft-reset dropped BNO055 back to CONFIG (0x00):
+     * reload cached 22-byte calibration profile before restoring OPR_MODE */
+    if (imu->has_saved_cal)
+    {
+      (void)BNO055_WriteCalProfile22(imu->saved_cal_data);
+    }
     bno055_setPage(0U);
     bno055_writeData(BNO055_OPR_MODE, (uint8_t)imu->op_mode);
     imu->mode_resets++;
@@ -420,6 +627,25 @@ bool BNO055_IMU_InitWithMode(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c, bno055_
     return false;
   }
 
+  imu->has_saved_cal = false;
+  imu->cal_saved_to_flash = false;
+  memset(imu->saved_cal_data, 0, sizeof(imu->saved_cal_data));
+
+  BNO055_FlashCalRecord_t cal_rec;
+  if (((imu->op_mode == BNO055_OPERATION_MODE_NDOF) ||
+       (imu->op_mode == BNO055_OPERATION_MODE_NDOF_FMC_OFF)) &&
+      BNO055_FlashCalLoad(&cal_rec))
+  {
+    bno055_setOperationModeConfig();
+    bno055_delay(20);
+    if (BNO055_WriteCalProfile22(cal_rec.cal_data))
+    {
+      imu->has_saved_cal = true;
+      imu->cal_saved_to_flash = true;
+      memcpy(imu->saved_cal_data, cal_rec.cal_data, BNO055_FLASH_CAL_DATA_LEN);
+    }
+  }
+
   bno055_setOperationMode(imu->op_mode);
   bno055_delay(30);
 
@@ -467,7 +693,10 @@ bool BNO055_IMU_InitWithMode(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c, bno055_
 
 bool BNO055_IMU_Init(BNO055_IMU_t *imu, I2C_HandleTypeDef *hi2c)
 {
-  return BNO055_IMU_InitWithMode(imu, hi2c, BNO055_DEFAULT_FUSION_MODE);
+  bno055_opmode_t mode = BNO055_IMU_HasFlashCal()
+                             ? BNO055_OPERATION_MODE_NDOF_FMC_OFF
+                             : BNO055_DEFAULT_FUSION_MODE;
+  return BNO055_IMU_InitWithMode(imu, hi2c, mode);
 }
 
 void BNO055_IMU_SetStationaryHint(BNO055_IMU_t *imu, bool stationary)
@@ -791,4 +1020,101 @@ void BNO055_IMU_ZeroAll(BNO055_IMU_t *imu)
   imu->pitch = 0.0f;
   imu->yaw_bias_dps = 0.0f;
   BNO055_ResetDriftWindow(imu);
+}
+
+bool BNO055_IMU_HasFlashCal(void)
+{
+  BNO055_FlashCalRecord_t rec;
+  return BNO055_FlashCalLoad(&rec);
+}
+
+bool BNO055_IMU_EnterAutoCalNDOF(BNO055_IMU_t *imu)
+{
+  if ((imu == NULL) || !imu->connected || (imu->chip_id == 0x85U) || (_bno055_i2c_port == NULL))
+  {
+    return false;
+  }
+
+  _bno055_i2c_addr = imu->i2c_addr;
+
+  bno055_setOperationModeConfig();
+  bno055_delay(20);
+  imu->op_mode = BNO055_OPERATION_MODE_NDOF;
+  imu->cal_saved_to_flash = false;
+  bno055_setOperationMode(imu->op_mode);
+  bno055_delay(30);
+  imu->resync_yaw_prev = true;
+  BNO055_ResetDriftWindow(imu);
+  imu->prev_sample_ms = HAL_GetTick();
+  imu->has_prev_sample_ms = true;
+  return true;
+}
+
+bool BNO055_IMU_SaveCalToFlash(BNO055_IMU_t *imu)
+{
+  if ((imu == NULL) || !imu->connected || (imu->chip_id == 0x85U) || (_bno055_i2c_port == NULL))
+  {
+    return false;
+  }
+
+  _bno055_i2c_addr = imu->i2c_addr;
+
+  bno055_setOperationModeConfig();
+  bno055_delay(20);
+
+  BNO055_FlashCalRecord_t rec;
+  memset(&rec, 0, sizeof(rec));
+  bno055_setPage(0U);
+  bno055_readData(BNO055_ACC_OFFSET_X_LSB, rec.cal_data, BNO055_FLASH_CAL_DATA_LEN);
+  bool read_ok = (_bno055_last_status == HAL_OK);
+
+  bool saved_ok = false;
+  if (read_ok)
+  {
+    rec.valid_flags = (uint8_t)(((imu->calib.mag >= 2U) ? 0x01U : 0x00U) |
+                                ((imu->calib.gyro >= 3U) ? 0x02U : 0x00U));
+    saved_ok = BNO055_FlashCalSave(&rec);
+    if (saved_ok)
+    {
+      imu->op_mode = BNO055_OPERATION_MODE_NDOF_FMC_OFF;
+      imu->has_saved_cal = true;
+      imu->cal_saved_to_flash = true;
+      memcpy(imu->saved_cal_data, rec.cal_data, BNO055_FLASH_CAL_DATA_LEN);
+    }
+  }
+
+  /* Restore operation mode into NDOF_FMC_OFF (if saved) without disturbing yaw_total */
+  bno055_setOperationMode(imu->op_mode);
+  bno055_delay(30);
+  imu->resync_yaw_prev = true;
+  BNO055_ResetDriftWindow(imu);
+  imu->prev_sample_ms = HAL_GetTick();
+  imu->has_prev_sample_ms = true;
+  return saved_ok;
+}
+
+bool BNO055_IMU_EraseFlashCal(BNO055_IMU_t *imu)
+{
+  bool erased = BNO055_FlashCalErase();
+  if (imu != NULL)
+  {
+    imu->has_saved_cal = false;
+    imu->cal_saved_to_flash = false;
+    memset(imu->saved_cal_data, 0, sizeof(imu->saved_cal_data));
+
+    if (erased && imu->connected && (imu->chip_id != 0x85U) && (_bno055_i2c_port != NULL))
+    {
+      _bno055_i2c_addr = imu->i2c_addr;
+      /* Soft-reset BNO055 so internal BSX filter drops old offsets cleanly */
+      bno055_setPage(0U);
+      bno055_writeData(BNO055_SYS_TRIGGER, 0x20U);
+#ifndef UNIT_TEST_HOST
+      bno055_delay(650);
+#else
+      bno055_delay(10);
+#endif
+      (void)BNO055_IMU_InitWithMode(imu, _bno055_i2c_port, BNO055_OPERATION_MODE_NDOF);
+    }
+  }
+  return erased;
 }
