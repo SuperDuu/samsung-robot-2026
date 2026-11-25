@@ -86,6 +86,40 @@ extern "C" {
 #define DRIVE_PS2_B1_CROSS               (1U << 6)
 #define DRIVE_PS2_B1_SQUARE              (1U << 7)
 
+/* Unified single-byte uint8_t PS2/TDK command codes (ZERO bitmask ambiguity).
+ * All codes live in disjoint ranges [0..213] and use exact if/else-if checks. */
+#define DRIVE_CMD_NONE                   0U
+#define DRIVE_CMD_L2                     1U
+#define DRIVE_CMD_R2                     2U
+#define DRIVE_CMD_L1_BOOST               4U
+#define DRIVE_CMD_L1_L2                  5U
+#define DRIVE_CMD_L1_R2                  6U
+#define DRIVE_CMD_R1_CLAMP               8U
+#define DRIVE_CMD_TRIANGLE               16U
+#define DRIVE_CMD_L1_TRIANGLE            20U
+#define DRIVE_CMD_CIRCLE                 32U
+#define DRIVE_CMD_L1_CIRCLE              36U
+#define DRIVE_CMD_CROSS                  64U
+#define DRIVE_CMD_L1_CROSS               68U
+#define DRIVE_CMD_SQUARE                 128U
+#define DRIVE_CMD_L1_SQUARE              132U
+#define DRIVE_CMD_SELECT                 140U
+#define DRIVE_CMD_SELECT_START           141U
+#define DRIVE_CMD_SELECT_L1              142U
+#define DRIVE_CMD_SELECT_R1              143U
+#define DRIVE_CMD_L3                     144U
+#define DRIVE_CMD_R3                     145U
+#define DRIVE_CMD_START_AUTO             146U
+#define DRIVE_CMD_SERVO1_FWD             200U
+#define DRIVE_CMD_SERVO1_REV             201U
+#define DRIVE_CMD_SERVO2_FWD             202U
+#define DRIVE_CMD_SERVO2_REV             203U
+#define DRIVE_CMD_DPAD_UP                210U
+#define DRIVE_CMD_DPAD_RIGHT             211U
+#define DRIVE_CMD_DPAD_DOWN              212U
+#define DRIVE_CMD_DPAD_LEFT              213U
+#define DRIVE_CMD_TAG_XOR                0xA5U
+
 typedef struct
 {
   uint8_t joy_sum[2];
