@@ -466,91 +466,88 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
   in.valid = true;
   in.joy_sum[0] = 100U;
   in.joy_sum[1] = 100U;
-  in.ps2_btn[1] = DRIVE_PS2_B1_TRIANGLE;
+  in.ps2_btn[1] = DRIVE_CMD_TRIANGLE;
   Drive_OmniCtrlStep(&ctrl, &in, false, 359.0f, true, 4000, modes, targets);
   assert(ctrl.omega_fb_pct > 0.0f && ctrl.omega_fb_pct <= 5.0f);
 
   /* Custom axis snaps: SQUARE (128) -> target=+90 (quay trai), CIRCLE (32) -> target=-90 (quay phai) */
-  in.ps2_btn[1] = DRIVE_PS2_B1_SQUARE;
+  in.ps2_btn[1] = DRIVE_CMD_SQUARE;
   Drive_OmniCtrlStep(&ctrl, &in, false, 90.0f, true, 4000, modes, targets);
   assert(fabsf(ctrl.target_heading_deg - 90.0f) < 0.01f);
   assert(fabsf(ctrl.field_axis_offset_deg - 90.0f) < 0.01f);
 
   Drive_OmniCtrlSetBlueSide(&ctrl, false);
-  in.ps2_btn[1] = DRIVE_PS2_B1_CIRCLE;
+  in.ps2_btn[1] = DRIVE_CMD_CIRCLE;
   Drive_OmniCtrlStep(&ctrl, &in, false, -90.0f, true, 4000, modes, targets);
   assert(fabsf(ctrl.target_heading_deg - (-90.0f)) < 0.01f);
   assert(fabsf(ctrl.field_axis_offset_deg - (-90.0f)) < 0.01f);
 
-  /* R3 toggles +/-45 deg diagonal snap; L1/R1 rotates with lead-cap and holds
-   * on release */
-  in.ps2_btn[1] = DRIVE_PS2_B1_TRIANGLE;
+  /* R3 toggles +/-45 deg diagonal snap */
+  in.ps2_btn[1] = DRIVE_CMD_TRIANGLE;
   Drive_OmniCtrlStep(&ctrl, &in, false, 0.0f, true, 4000, modes, targets);
   assert(fabsf(ctrl.target_heading_deg) < 0.01f && !ctrl.diagonal_45);
-  in.ps2_btn[1] = 0U;
-  in.ps2_btn[0] = DRIVE_PS2_B0_R3;
+  in.ps2_btn[1] = DRIVE_CMD_R3;
   Drive_OmniCtrlStep(&ctrl, &in, false, 0.0f, true, 4000, modes, targets);
   assert(ctrl.diagonal_45 && fabsf(ctrl.target_heading_deg - (-45.0f)) < 0.01f);
-  in.ps2_btn[0] = 0U;
+  in.ps2_btn[1] = DRIVE_CMD_NONE;
   Drive_OmniCtrlStep(&ctrl, &in, false, 0.0f, true, 4000, modes, targets);
-  in.ps2_btn[0] = DRIVE_PS2_B0_R3;
+  in.ps2_btn[1] = DRIVE_CMD_R3;
   Drive_OmniCtrlStep(&ctrl, &in, false, 0.0f, true, 4000, modes, targets);
   assert(!ctrl.diagonal_45 && fabsf(ctrl.target_heading_deg) < 0.01f);
 
   /* Falsification: Standalone R1 is dedicated to clamp toggle, so it MUST NOT
    * rotate the robot or change target_heading! */
-  in.ps2_btn[0] = 0U;
-  in.ps2_btn[1] = DRIVE_PS2_B1_R1;
+  in.ps2_btn[1] = DRIVE_CMD_R1_CLAMP;
   float pre_r1_hdg = ctrl.target_heading_deg;
   for (int step = 0; step < 30; step++) {
     Drive_OmniCtrlStep(&ctrl, &in, false, 20.0f, true, 4000, modes, targets);
   }
   assert(fabsf(ctrl.target_heading_deg - pre_r1_hdg) < 0.01f);
-  in.ps2_btn[1] = 0U;
+  in.ps2_btn[1] = DRIVE_CMD_NONE;
   Drive_OmniCtrlStep(&ctrl, &in, false, 20.0f, true, 4000, modes, targets);
   assert(fabsf(ctrl.target_heading_deg - pre_r1_hdg) < 0.01f);
 
   /* Fine yaw trim with L2 (left) and R2 (right) at 20 RPM (200 rpm_x10) */
-  in.ps2_btn[1] = DRIVE_PS2_B1_L2;
+  in.ps2_btn[1] = DRIVE_CMD_L2;
   Drive_OmniCtrlStep(&ctrl, &in, false, 15.0f, true, 4000, modes, targets);
   assert(fabsf(fabsf(ctrl.omega_fb_pct) - DRIVE_OMNI_TRIM_ROT_PCT) < 0.01f);
   assert(abs(targets[0]) == 200); /* 20.0 RPM per wheel */
 
-  /* Boosted yaw rotation: Holding L1 (di nhanh) + L2 boosts rotation 3.75x to 75.0 RPM (750 rpm_x10) */
-  in.ps2_btn[1] = (uint8_t)(DRIVE_PS2_B1_L1 | DRIVE_PS2_B1_L2);
+  /* Boosted yaw rotation: Holding L1 + L2 (DRIVE_CMD_L1_L2 = 5) boosts rotation 3.75x to 75.0 RPM */
+  in.ps2_btn[1] = DRIVE_CMD_L1_L2;
   Drive_OmniCtrlStep(&ctrl, &in, false, 15.0f, true, 4000, modes, targets);
   assert(fabsf(fabsf(ctrl.omega_fb_pct) - DRIVE_OMNI_BOOST_ROT_PCT) < 0.01f);
   assert(abs(targets[0]) == 750); /* 75.0 RPM per wheel: 3.75x faster! */
 
   /* Release L2: target_heading_deg locks to new physical angle (18 deg), while heading_trim_deg remains 0 */
-  in.ps2_btn[1] = 0U;
+  in.ps2_btn[1] = DRIVE_CMD_NONE;
   Drive_OmniCtrlStep(&ctrl, &in, false, 18.0f, true, 4000, modes, targets);
   assert(fabsf(ctrl.target_heading_deg - 18.0f) < 0.01f);
   assert(fabsf(ctrl.heading_trim_deg - 0.0f) < 0.01f);
 
   /* Pad snap test: pressing Triangle (0 deg) snaps target_heading back to true 0 deg! */
-  in.ps2_btn[1] = DRIVE_PS2_B1_TRIANGLE;
+  in.ps2_btn[1] = DRIVE_CMD_TRIANGLE;
   Drive_OmniCtrlStep(&ctrl, &in, false, 18.0f, true, 4000, modes, targets);
   assert(fabsf(ctrl.target_heading_deg - 0.0f) < 0.01f);
   assert(ctrl.omega_fb_pct < 0.0f); /* Active rotation back towards 0 deg */
   /* Once robot returns to 0 deg, heading error settles */
-  in.ps2_btn[1] = 0U;
+  in.ps2_btn[1] = DRIVE_CMD_NONE;
   for (int step = 0; step < 60; step++) {
     Drive_OmniCtrlStep(&ctrl, &in, false, 0.0f, true, 4000, modes, targets);
   }
   assert(targets[0] == 0 && targets[1] == 0 && targets[2] == 0 && targets[3] == 0);
 
   /* R2 rotates in opposite direction at 20 RPM without corrupting trim */
-  in.ps2_btn[1] = DRIVE_PS2_B1_R2;
+  in.ps2_btn[1] = DRIVE_CMD_R2;
   Drive_OmniCtrlStep(&ctrl, &in, false, 0.0f, true, 4000, modes, targets);
   assert(fabsf(fabsf(ctrl.omega_fb_pct) - DRIVE_OMNI_TRIM_ROT_PCT) < 0.01f);
   assert(abs(targets[0]) == 200); /* 20.0 RPM per wheel */
-  in.ps2_btn[1] = 0U;
+  in.ps2_btn[1] = DRIVE_CMD_NONE;
 
   /* Large turn test: Rotating 180 deg with L2 must update target_heading to 180 deg and PRESERVE field-centric! */
   ctrl.heading_trim_deg = 0.0f;
   ctrl.target_heading_deg = 0.0f;
-  in.ps2_btn[1] = DRIVE_PS2_B1_L2;
+  in.ps2_btn[1] = DRIVE_CMD_L2;
   for (int step = 0; step < 50; step++) {
     Drive_OmniCtrlStep(&ctrl, &in, false, 180.0f, true, 4000, modes, targets);
   }
@@ -627,11 +624,11 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
     int16_t t_norm[4], t_boost[4];
 
     /* Step 1: Normal snap to 180 deg (Cross button only) */
-    snap_in.ps2_btn[1] = DRIVE_PS2_B1_CROSS;
+    snap_in.ps2_btn[1] = DRIVE_CMD_CROSS;
     Drive_OmniCtrlStep(&snap_norm, &snap_in, false, 0.0f, true, 4000, smodes, t_norm);
 
-    /* Step 2: Boosted snap to 180 deg (L1 Boost + Cross button) */
-    snap_in.ps2_btn[1] = (uint8_t)(DRIVE_PS2_B1_L1 | DRIVE_PS2_B1_CROSS);
+    /* Step 2: Boosted snap to 180 deg (DRIVE_CMD_L1_CROSS = 68) */
+    snap_in.ps2_btn[1] = DRIVE_CMD_L1_CROSS;
     Drive_OmniCtrlStep(&snap_boost, &snap_in, false, 0.0f, true, 4000, smodes, t_boost);
 
     /* Boosted snap must have 2.5x higher slew rate and significantly higher wheel target RPM */
@@ -751,14 +748,13 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
     int16_t ttargets[4];
 
     /* Settle heading_initialized at 0 deg */
-    tin.ps2_btn[0] = DRIVE_PS2_B0_SELECT;
+    tin.ps2_btn[1] = DRIVE_CMD_SELECT;
     Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
                        ttargets);
     assert(fabsf(trim_ctrl.heading_trim_deg) < 0.001f);
 
-    /* Rising edge SELECT + R1: trim = -0.5 deg, target_heading unchanged,
-     * positive omega correction */
-    tin.ps2_btn[1] = DRIVE_PS2_B1_R1;
+    /* Rising edge SELECT + R1 (143): trim = -0.5 deg, target_heading unchanged */
+    tin.ps2_btn[1] = DRIVE_CMD_SELECT_R1;
     Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
                        ttargets);
     assert(fabsf(trim_ctrl.heading_trim_deg -
@@ -775,46 +771,41 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
                  (-DRIVE_OMNI_HEADING_TRIM_STEP_DEG)) < 0.001f);
     assert(fabsf(trim_ctrl.target_heading_deg) < 0.001f);
 
-    /* Release R1, press SELECT + L1: trim returns to 0.0 deg */
-    tin.ps2_btn[1] = 0U;
+    /* Release R1, press SELECT + L1 (142): trim returns to 0.0 deg */
+    tin.ps2_btn[1] = DRIVE_CMD_SELECT;
     Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
                        ttargets);
-    tin.ps2_btn[1] = DRIVE_PS2_B1_L1;
+    tin.ps2_btn[1] = DRIVE_CMD_SELECT_L1;
     Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
                        ttargets);
     assert(fabsf(trim_ctrl.heading_trim_deg) < 0.001f);
 
-    /* Falsification: Single-tap START alone (used to trigger R2) MUST NOT disable field_centric or heading_hold! */
-    tin.ps2_btn[0] = DRIVE_PS2_B0_START;
-    tin.ps2_btn[1] = 0U;
+    /* Falsification: Single-tap START alone (DRIVE_CMD_START_AUTO = 146) MUST NOT disable field_centric! */
+    tin.ps2_btn[1] = DRIVE_CMD_START_AUTO;
     Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
                        ttargets);
     assert(trim_ctrl.field_centric && trim_ctrl.heading_hold);
 
     /* Release button before combo test */
-    tin.ps2_btn[0] = 0U;
+    tin.ps2_btn[1] = DRIVE_CMD_NONE;
     Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
                        ttargets);
 
-    /* Intentional safety combo: SELECT + START toggles field_centric & heading_hold off (open-loop) */
-    tin.ps2_btn[0] = (uint8_t)(DRIVE_PS2_B0_SELECT | DRIVE_PS2_B0_START);
-    tin.ps2_btn[1] = 0U;
+    /* Intentional safety combo: SELECT + START (141) toggles field_centric & heading_hold off */
+    tin.ps2_btn[1] = DRIVE_CMD_SELECT_START;
     Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
                        ttargets);
     assert(!trim_ctrl.field_centric && !trim_ctrl.heading_hold);
 
-    tin.ps2_btn[0] = DRIVE_PS2_B0_SELECT;
-    tin.ps2_btn[1] = DRIVE_PS2_B1_R1;
+    tin.ps2_btn[1] = DRIVE_CMD_SELECT_R1;
     Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
                        ttargets);
     assert(fabsf(trim_ctrl.heading_trim_deg -
                  (-DRIVE_OMNI_HEADING_TRIM_STEP_DEG)) < 0.001f);
-    /* D-pad micro-adjustment test (16=UP, 32=RIGHT, 64=DOWN, 128=LEFT):
-     * Must move in precision crawl mode (DRIVE_OMNI_CRAWL_PCT = 15% = 60 RPM / 0.13 m/s) */
+    /* D-pad micro-adjustment test (DRIVE_CMD_DPAD_UP = 210): precision crawl (22%) */
     tin.joy_sum[0] = 100U;
     tin.joy_sum[1] = 100U;
-    tin.ps2_btn[0] = DRIVE_PS2_B0_UP; /* 16 */
-    tin.ps2_btn[1] = 0U;
+    tin.ps2_btn[1] = DRIVE_CMD_DPAD_UP;
     for (int step = 0; step < 10; step++) {
       Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
                          ttargets);
@@ -831,21 +822,19 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
     trim_ctrl.target_heading_deg = 0.0f;
     trim_ctrl.slew_heading_deg = 0.0f;
 
-    /* Servo code guard: values 200..203 (360 continuous servos) must NOT trigger
-     * D-pad movement, nor collide with L3/SELECT/START bitmasks! */
-    const uint8_t servo_codes[4] = {200U, 201U, 202U, 203U};
+    /* Servo code guard: pure uint8_t equality means 200..203 NEVER collide with
+     * START (146), L3 (144), SELECT (140), R1_CLAMP (8), or D-pad (210..213)! */
+    const uint8_t servo_codes[4] = {
+        DRIVE_CMD_SERVO1_FWD, DRIVE_CMD_SERVO1_REV,
+        DRIVE_CMD_SERVO2_FWD, DRIVE_CMD_SERVO2_REV};
     for (uint8_t s_idx = 0U; s_idx < 4U; s_idx++) {
       uint8_t s_code = servo_codes[s_idx];
-      uint8_t clean_b0 = (s_code < 200U) ? s_code : 0U;
-      assert(clean_b0 == 0U);
-      /* Specifically verify that 202 and 203 (which have bit 1 = 1) do NOT trigger L3 (Zero Yaw) */
-      assert((clean_b0 & DRIVE_PS2_B0_L3) == 0U);
-      /* Verify 203 (bit 0 = 1) does NOT trigger SELECT */
-      assert((clean_b0 & DRIVE_PS2_B0_SELECT) == 0U);
-      /* Verify 200..203 (bit 3 = 1) do NOT trigger START */
-      assert((clean_b0 & DRIVE_PS2_B0_START) == 0U);
+      assert(s_code != DRIVE_CMD_START_AUTO);
+      assert(s_code != DRIVE_CMD_L3);
+      assert(s_code != DRIVE_CMD_SELECT);
+      assert(s_code != DRIVE_CMD_R1_CLAMP);
 
-      tin.ps2_btn[0] = s_code;
+      tin.ps2_btn[1] = s_code;
       for (int step = 0; step < 10; step++) {
         Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, true, 4000, tmodes,
                            ttargets);
@@ -857,7 +846,7 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
       assert(fabsf(trim_ctrl.target_heading_deg) < 0.001f);
     }
 
-    /* L1 3x Speed Boost test (tx_buf[3] = 4):
+    /* L1 3x Speed Boost test (DRIVE_CMD_L1_BOOST = 4):
      * Pushing joystick forward with L1 must triple speed compared to normal,
      * and L1 must NOT produce CCW rotation (omega == 0)! */
     Drive_OmniCtrlInit(&trim_ctrl, false);
@@ -865,7 +854,7 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
     tin.ps2_btn[0] = 0U;
     tin.joy_sum[0] = 70U; /* Tilted forward: target_y = -30% */
     tin.joy_sum[1] = 100U;
-    tin.ps2_btn[1] = 0U; /* Base speed (default Gear 0 = 33%) */
+    tin.ps2_btn[1] = DRIVE_CMD_NONE; /* Base speed (default Gear 0 = 33%) */
     for (int step = 0; step < 20; step++) {
       Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, false, 4000, tmodes,
                          ttargets);
@@ -874,7 +863,7 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
 
     Drive_OmniCtrlInit(&trim_ctrl, false);
     trim_ctrl.heading_hold = false;
-    tin.ps2_btn[1] = DRIVE_PS2_B1_L1; /* 3x Boost */
+    tin.ps2_btn[1] = DRIVE_CMD_L1_BOOST; /* 3x Boost */
     for (int step = 0; step < 20; step++) {
       Drive_OmniCtrlStep(&trim_ctrl, &tin, false, 0.0f, false, 4000, tmodes,
                          ttargets);
@@ -1120,31 +1109,31 @@ static void test_itc2026_auto_fsm_and_rf_security(void) {
     assert(trigger_edges == 2U); /* Passed! Proven that R2 triggers reliably on every subsequent press! */
   }
 
-  /* Servo Command Isolation & Falsification Verification:
-   * When user moves joystick to raise/lower servos (ps2_btn[0] == 200..203):
-   * 1. Raw ps2_btn[0] = 200 (0b11001000) has Bit 3 set (200 & DRIVE_PS2_B0_START != 0).
-   * 2. clean_btn0_auto MUST evaluate to 0U, strictly suppressing false START trigger.
-   * 3. auto_msg.arg2 MUST carry clean_btn0_auto (0), NOT raw ps2_btn[0] (200).
-   * 4. R1 must remain completely silent (no transmission) during servo moves. */
+  /* Servo Command Isolation & Disjoint uint8_t Falsification Verification:
+   * With pure uint8_t command codes (ps2_btn[1]) + XOR integrity tag (ps2_btn[0]):
+   * 1. Servo codes 200..203 NEVER match START (146) or R1_CLAMP (8) via ==.
+   * 2. Corrupt RF byte where tag mismatches MUST decode to DRIVE_CMD_NONE (0).
+   * 3. Neither SERVO codes nor L1_BOOST/SELECT_R1/0xFF produce any START trigger. */
   {
-    const uint8_t servo_codes[4] = {200U, 201U, 202U, 203U};
-    for (uint8_t i = 0U; i < 4U; i++) {
-      uint8_t raw_btn0 = servo_codes[i];
-      /* Falsification demonstration: raw byte collides with DRIVE_PS2_B0_START */
-      assert((raw_btn0 & DRIVE_PS2_B0_START) != 0U);
-
-      /* Cleaned button state must strictly be 0 */
-      uint8_t clean_btn0_auto = (raw_btn0 < 200U) ? raw_btn0 : 0U;
-      assert(clean_btn0_auto == 0U);
-
-      /* R2 trigger must NEVER fire during servo stick moves */
-      bool trigger_auto = ((clean_btn0_auto & DRIVE_PS2_B0_START) != 0U);
+    const uint8_t non_start_cmds[7] = {
+        DRIVE_CMD_SERVO1_FWD, DRIVE_CMD_SERVO1_REV, DRIVE_CMD_SERVO2_FWD,
+        DRIVE_CMD_SERVO2_REV, DRIVE_CMD_L1_BOOST,   DRIVE_CMD_R1_CLAMP,
+        DRIVE_CMD_SELECT_R1};
+    for (uint8_t i = 0U; i < 7U; i++) {
+      uint8_t code = non_start_cmds[i];
+      uint8_t tag = (uint8_t)(code ^ DRIVE_CMD_TAG_XOR);
+      assert(code != 255U && tag != 255U); /* Must never collide with RF SOF 0xFF */
+      uint8_t decoded_cmd =
+          (tag == (uint8_t)(code ^ DRIVE_CMD_TAG_XOR)) ? code : DRIVE_CMD_NONE;
+      bool trigger_auto = (decoded_cmd == DRIVE_CMD_START_AUTO);
       assert(trigger_auto == false);
-
-      /* Encoded arg2 must not leak servo codes into button bits */
-      int16_t arg2 = (int16_t)(((uint16_t)0U << 8U) | clean_btn0_auto);
-      assert(((uint8_t)arg2 & DRIVE_PS2_B0_START) == 0U);
     }
+    /* Corrupt 1 bit on wire: ps2_btn[1] flips from 0 -> 146 while tag stays 0^0xA5 */
+    uint8_t bad_cmd = DRIVE_CMD_START_AUTO;
+    uint8_t stale_tag = (uint8_t)(DRIVE_CMD_NONE ^ DRIVE_CMD_TAG_XOR);
+    uint8_t rejected_cmd =
+        (stale_tag == (uint8_t)(bad_cmd ^ DRIVE_CMD_TAG_XOR)) ? bad_cmd : DRIVE_CMD_NONE;
+    assert(rejected_cmd == DRIVE_CMD_NONE);
   }
 
   /* Autonomous ITC 2026 FSM full cycle */
@@ -1265,13 +1254,14 @@ static void test_servo_180_and_clamp_toggle(void) {
   assert(st.current_us == 500U);
   assert(fabsf(st.last_cmd - 0.0f) < 0.01f);
 
-  /* 2. 1st press (toggle to open): 30.0 deg */
+  /* 2. 1st press (toggle to open): SERVO_CLAMP_DEFAULT_OPEN_DEG (35.0 deg) */
+  uint16_t expected_open_us =
+      (uint16_t)(500.0f + (SERVO_CLAMP_DEFAULT_OPEN_DEG / 180.0f) * 2000.0f + 0.5f);
   assert(Servo_SetAngle180(SERVO_CLAMP_CH, SERVO_CLAMP_DEFAULT_OPEN_DEG) == HAL_OK);
-  /* Pulse = 500 + (30 / 180) * 2000 = 833 us */
-  assert(g_mock_tim4.CCR4 == 833U);
+  assert(g_mock_tim4.CCR4 == expected_open_us);
   assert(Servo_GetState(SERVO_CLAMP_CH, &st));
-  assert(st.current_us == 833U);
-  assert(fabsf(st.last_cmd - 30.0f) < 0.01f);
+  assert(st.current_us == expected_open_us);
+  assert(fabsf(st.last_cmd - SERVO_CLAMP_DEFAULT_OPEN_DEG) < 0.01f);
 
   /* 3. 2nd press (toggle to closed): 0.0 deg */
   assert(Servo_SetAngle180(SERVO_CLAMP_CH, SERVO_CLAMP_DEFAULT_CLOSE_DEG) == HAL_OK);
@@ -1308,34 +1298,45 @@ static void test_servo_180_and_clamp_toggle(void) {
   /* Restore normal polarity */
   assert(Servo_Config180(SERVO_CLAMP_CH, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false) == HAL_OK);
 
-  /* 7. Simulate R1 button toggle state machine */
+  /* 7. Simulate hardened R1 clamp toggle state machine (pure uint8_t == + XOR tag + 2-frame debounce):
+   *    Falsifies bit-flip glitches while driving fast with L1! */
   bool clamp_opened = false;
   uint8_t prev_r1 = 0U;
-  float angles[6];
+  uint8_t confirm_cnt = 0U;
 
-  uint8_t r1_inputs[6] = {0U, 1U, 1U, 0U, 1U, 0U};
-  /* Step 0: unpressed -> initial (0 deg)
-   * Step 1: press R1 (rise) -> open (40 deg)
-   * Step 2: hold R1 -> stays open (40 deg)
-   * Step 3: release R1 -> stays open (40 deg)
-   * Step 4: press R1 (rise) -> closed (0 deg)
-   * Step 5: release R1 -> stays closed (0 deg)
-   */
-  for (int i = 0; i < 6; i++) {
-    uint8_t r1_now = r1_inputs[i];
+  struct { uint8_t cmd; uint8_t tag; bool expect_open; } r1_seq[] = {
+    { DRIVE_CMD_L1_BOOST, (uint8_t)(DRIVE_CMD_L1_BOOST ^ DRIVE_CMD_TAG_XOR), false }, /* Fast move */
+    { 12U,                (uint8_t)(12U ^ DRIVE_CMD_TAG_XOR),                false }, /* L1+R1 combo/noise != 8 -> ignored */
+    { DRIVE_CMD_R1_CLAMP, (uint8_t)(DRIVE_CMD_L1_BOOST ^ DRIVE_CMD_TAG_XOR), false }, /* 1-bit flip w/ stale tag -> rejected */
+    { DRIVE_CMD_R1_CLAMP, (uint8_t)(DRIVE_CMD_R1_CLAMP ^ DRIVE_CMD_TAG_XOR), false }, /* Single glitch frame (cnt=1) -> ignored */
+    { DRIVE_CMD_NONE,     (uint8_t)(DRIVE_CMD_NONE ^ DRIVE_CMD_TAG_XOR),     false }, /* Returns idle */
+    { DRIVE_CMD_R1_CLAMP, (uint8_t)(DRIVE_CMD_R1_CLAMP ^ DRIVE_CMD_TAG_XOR), false }, /* Real press frame 1 (cnt=1) */
+    { DRIVE_CMD_R1_CLAMP, (uint8_t)(DRIVE_CMD_R1_CLAMP ^ DRIVE_CMD_TAG_XOR), true  }, /* Real press frame 2 (cnt=2) -> OPENS! */
+    { DRIVE_CMD_R1_CLAMP, (uint8_t)(DRIVE_CMD_R1_CLAMP ^ DRIVE_CMD_TAG_XOR), true  }, /* Held -> stays open */
+    { DRIVE_CMD_NONE,     (uint8_t)(DRIVE_CMD_NONE ^ DRIVE_CMD_TAG_XOR),     true  }, /* Released -> stays open */
+    { DRIVE_CMD_SELECT_R1,(uint8_t)(DRIVE_CMD_SELECT_R1 ^ DRIVE_CMD_TAG_XOR),true  }, /* SELECT+R1 (143) != 8 -> stays open */
+    { DRIVE_CMD_R1_CLAMP, (uint8_t)(DRIVE_CMD_R1_CLAMP ^ DRIVE_CMD_TAG_XOR), true  }, /* 2nd press frame 1 */
+    { DRIVE_CMD_R1_CLAMP, (uint8_t)(DRIVE_CMD_R1_CLAMP ^ DRIVE_CMD_TAG_XOR), false }, /* 2nd press frame 2 -> CLOSES! */
+  };
+  for (size_t i = 0U; i < (sizeof(r1_seq) / sizeof(r1_seq[0])); i++) {
+    uint8_t btn_cmd =
+        (r1_seq[i].tag == (uint8_t)(r1_seq[i].cmd ^ DRIVE_CMD_TAG_XOR))
+            ? r1_seq[i].cmd
+            : DRIVE_CMD_NONE;
+    if (btn_cmd == DRIVE_CMD_R1_CLAMP) {
+      if (confirm_cnt < 255U) {
+        confirm_cnt++;
+      }
+    } else {
+      confirm_cnt = 0U;
+    }
+    uint8_t r1_now = (confirm_cnt >= 2U) ? 1U : 0U;
     if ((r1_now != 0U) && (prev_r1 == 0U)) {
       clamp_opened = !clamp_opened;
     }
-    angles[i] = clamp_opened ? SERVO_CLAMP_DEFAULT_OPEN_DEG
-                             : SERVO_CLAMP_DEFAULT_CLOSE_DEG;
     prev_r1 = r1_now;
+    assert(clamp_opened == r1_seq[i].expect_open);
   }
-  assert(fabsf(angles[0] - 0.0f) < 0.01f);
-  assert(fabsf(angles[1] - 30.0f) < 0.01f);
-  assert(fabsf(angles[2] - 30.0f) < 0.01f);
-  assert(fabsf(angles[3] - 30.0f) < 0.01f);
-  assert(fabsf(angles[4] - 0.0f) < 0.01f);
-  assert(fabsf(angles[5] - 0.0f) < 0.01f);
 
   printf("      PASS.\n");
 }
