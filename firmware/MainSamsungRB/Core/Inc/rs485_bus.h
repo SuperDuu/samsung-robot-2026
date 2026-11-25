@@ -42,9 +42,10 @@ extern "C" {
 #define RS485_ADDR_BCAST            0xFFU
 
 #define RS485_MAX_WHEELS            4U
-#define RS485_CMD_WATCHDOG_MS       750U   /* < 1s watchdog (750 ms) to prevent runaway while avoiding overreaction */
-#define RS485_SLAVE_TURNAROUND_MS   2U   /* >= 1.0 ms real bus-idle gap despite 1 ms SysTick quantization */
-#define RS485_TX_WATCHDOG_MS        20U
+#define RS485_CMD_WATCHDOG_MS        750U   /* < 1s watchdog (750 ms) to prevent runaway while avoiding overreaction */
+#define RS485_SLAVE_TURNAROUND_MS    2U   /* >= 1.0 ms real bus-idle gap despite 1 ms SysTick quantization */
+#define RS485_SLAVE_REPLY_MAX_AGE_MS 5U   /* Drop delayed slave reply before Master's 10 ms slot collides */
+#define RS485_TX_WATCHDOG_MS         20U
 
 #define RS485_PAYLOAD_MULTI_CMD_LEN 16U
 #define RS485_PAYLOAD_WHEEL_CMD_LEN 6U
@@ -168,6 +169,7 @@ typedef struct
   uint32_t uart_ne_errors;
   uint32_t uart_pe_errors;
   uint32_t tx_wdog_recoveries;
+  uint32_t stale_reply_drops;
 } RS485_Stats_t;
 
 struct RS485_Bus_s;
@@ -198,6 +200,7 @@ typedef struct RS485_Bus_s
   RS485_Stats_t        stats;
   RS485_RxCallback_t   rx_callback;
   void                *rx_callback_ctx;
+  volatile uint8_t     rx_rearm_needed;
 } RS485_Bus_t;
 
 void RS485_Init(RS485_Bus_t *bus,

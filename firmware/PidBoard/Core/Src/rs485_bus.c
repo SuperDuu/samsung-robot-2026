@@ -10,6 +10,21 @@
 #include "rs485_bus.h"
 #include <string.h>
 
+static uint32_t rs485_enter_critical(void)
+{
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
+  return primask;
+}
+
+static void rs485_exit_critical(uint32_t primask)
+{
+  if (primask == 0U)
+  {
+    __enable_irq();
+  }
+}
+
 static void rs485_set_dir_rx(const RS485_Bus_t *bus)
 {
   if ((bus != NULL) && (bus->re_de_port != NULL))
@@ -536,13 +551,18 @@ void RS485_ProcessRx(RS485_Bus_t *bus, uint32_t now_ms)
     return;
   }
 
-  /* Always drain unread ring bytes BEFORE checking if DMA stopped */
+  /* Critical section prevents USART2/DMA error IRQ preemption mid-drain so
+   * ISR can never reset rx_read_pos=0 under a stale local write_pos. */
+  uint32_t primask = rs485_enter_critical();
   rs485_drain_dma_ring(bus, now_ms);
 
-  if (bus->huart->RxState == HAL_UART_STATE_READY)
+  if ((bus->rx_rearm_needed != 0U) ||
+      (bus->huart->RxState != HAL_UART_STATE_BUSY_RX))
   {
-    (void)rs485_rearm_rx_dma(bus, false, false);
+    bus->rx_rearm_needed = 0U;
+    (void)rs485_rearm_rx_dma(bus, true, false);
   }
+  rs485_exit_critical(primask);
 }
 
 void RS485_TickMs(RS485_Bus_t *bus, uint32_t now_ms)
@@ -551,6 +571,8 @@ void RS485_TickMs(RS485_Bus_t *bus, uint32_t now_ms)
   {
     return;
   }
+
+  uint32_t primask = rs485_enter_critical();
 
   /* Watchdog so RE_DE can never stay wedged TX-High on a missed UART TC IRQ */
   if (bus->tx_active != 0U)
@@ -569,20 +591,31 @@ void RS485_TickMs(RS485_Bus_t *bus, uint32_t now_ms)
     }
   }
 
-  /* Release deferred slave reply only after guaranteed bus-idle turnaround margin */
-  if ((bus->pending_reply_valid != 0U) &&
-      (bus->tx_active == 0U) &&
-      (bus->huart->gState == HAL_UART_STATE_READY) &&
-      ((uint32_t)(now_ms - bus->pending_reply_rx_ms) >= RS485_SLAVE_TURNAROUND_MS))
+  /* Release deferred slave reply inside the safe idle window [2..5 ms],
+   * or discard if stale (>5 ms) to avoid colliding with Master's 10 ms poll. */
+  if (bus->pending_reply_valid != 0U)
   {
-    uint8_t len = bus->pending_reply_len;
-    bus->pending_reply_valid = 0U;
-    if ((len > 0U) && (len <= RS485_MAX_FRAME_SIZE))
+    uint32_t reply_age = (uint32_t)(now_ms - bus->pending_reply_rx_ms);
+    if (reply_age > RS485_SLAVE_REPLY_MAX_AGE_MS)
     {
-      memcpy(bus->tx_buf, bus->pending_reply_buf, len);
-      (void)rs485_transmit_raw(bus, len, now_ms);
+      bus->pending_reply_valid = 0U;
+      bus->stats.stale_reply_drops++;
+    }
+    else if ((bus->tx_active == 0U) &&
+             (bus->huart->gState == HAL_UART_STATE_READY) &&
+             (reply_age >= RS485_SLAVE_TURNAROUND_MS))
+    {
+      uint8_t len = bus->pending_reply_len;
+      bus->pending_reply_valid = 0U;
+      if ((len > 0U) && (len <= RS485_MAX_FRAME_SIZE))
+      {
+        memcpy(bus->tx_buf, bus->pending_reply_buf, len);
+        (void)rs485_transmit_raw(bus, len, now_ms);
+      }
     }
   }
+
+  rs485_exit_critical(primask);
 }
 
 void RS485_TxCpltCallback(RS485_Bus_t *bus, UART_HandleTypeDef *huart)
@@ -625,13 +658,15 @@ void RS485_UartErrorCallback(RS485_Bus_t *bus, UART_HandleTypeDef *huart)
 
   bus->stats.uart_err_recoveries++;
 
-  /* Preserve intact buffered DMA bytes + partial frame state before clearing/re-arming */
+  /* Preserve intact buffered DMA bytes + partial frame state, flush error flags,
+   * and defer DMA re-arm to RS485_ProcessRx() in main() so noisy idle edges
+   * cannot trigger an interrupt storm or reset rx_read_pos mid-drain. */
   rs485_drain_dma_ring(bus, HAL_GetTick());
   rs485_uart_flush_rx(bus->huart);
 
   if ((bus->huart->hdmarx != NULL) && (bus->huart->RxState != HAL_UART_STATE_BUSY_RX))
   {
-    (void)rs485_rearm_rx_dma(bus, false, false);
+    bus->rx_rearm_needed = 1U;
   }
 }
 
