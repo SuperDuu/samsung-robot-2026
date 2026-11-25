@@ -346,7 +346,7 @@ static void test_bno055_hardening_and_backoff(void) {
   assert(imu.recoveries == 2U);
   assert(g_mock_i2c_recover_calls >= 2U);
 
-  /* (a) Default 6-DoF IMU (0x08) mode & silent brown-out (OPR_MODE -> 0x00, yaw
+  /* (a) Default 9-DoF NDOF (0x0C) mode & silent brown-out (OPR_MODE -> 0x00, yaw
    * -> 0) zero-jump recovery */
   {
     MockHal_ResetAll();
@@ -355,8 +355,8 @@ static void test_bno055_hardening_and_backoff(void) {
     BNO055_IMU_t bo_imu;
     g_mock_bno.yaw_deg = 0.0f;
     assert(BNO055_IMU_Init(&bo_imu, &hi2c3));
-    assert(bo_imu.op_mode == BNO055_OPERATION_MODE_IMU);
-    assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_IMU);
+    assert(bo_imu.op_mode == BNO055_OPERATION_MODE_NDOF);
+    assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_NDOF);
 
     /* Sub-check (a1): silent brown-out while at 0 deg caught by 5 Hz OPR_MODE
      * check + 1-tick resync */
@@ -366,7 +366,7 @@ static void test_bno055_hardening_and_backoff(void) {
       assert(BNO055_IMU_Update(&bo_imu));
     }
     assert(bo_imu.mode_resets == 1U);
-    assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_IMU);
+    assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_NDOF);
     assert(!bo_imu.resync_yaw_prev);
 
     g_mock_bno.yaw_deg = 90.0f;
@@ -381,7 +381,7 @@ static void test_bno055_hardening_and_backoff(void) {
     MockHal_AdvanceTick(10U);
     assert(BNO055_IMU_Update(&bo_imu));
     assert(bo_imu.mode_resets == 2U);
-    assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_IMU);
+    assert((g_mock_bno.opr_mode & 0x0FU) == (uint8_t)BNO055_OPERATION_MODE_NDOF);
     assert(fabsf(bo_imu.yaw - 90.0f) < 0.1f);
 
     /* Post-restore resync + +15 deg relative turn */
@@ -417,7 +417,7 @@ static void test_bno055_hardening_and_backoff(void) {
       g_mock_bno.present = true;
       g_mock_bno.yaw_deg = 0.0f;
       g_mock_bno.calib_stat = 0xFFU;
-      assert(BNO055_IMU_Init(&drift_imu, &hi2c3));
+      assert(BNO055_IMU_InitWithMode(&drift_imu, &hi2c3, BNO055_OPERATION_MODE_IMU));
       drift_imu.software_drift_comp = true;
 
       BNO055_IMU_SetStationaryHint(&drift_imu, true);
@@ -623,6 +623,28 @@ static void test_drive_kinematics_custom_field_centric_and_curvature(void) {
     assert(c_noise.heading_settled && m_lo[0] == DRIVE_WHEEL_MODE_BRAKE && t_lo[0] == 0);
     Drive_OmniCtrlStep(&c_noise, &hold_in, false, 1.6f, true, 4000, m_lo, t_lo);
     assert(!c_noise.heading_settled && m_lo[0] == DRIVE_WHEEL_MODE_VELOCITY && t_lo[0] != 0);
+
+    /* Falsification: Slow joystick translation must bypass stationary 1.5 deg
+     * hysteresis so even 1.0 deg drift is actively corrected! */
+    Drive_OmniCtrlStep(&c_noise, &hold_in, false, 0.0f, true, 4000, m_lo, t_lo);
+    assert(c_noise.heading_settled);
+    Drive_Ps2Input_t slow_joy = {.joy_sum = {80U, 100U}, .valid = true}; /* Slow fwd 20% */
+    Drive_OmniCtrlStep(&c_noise, &slow_joy, false, 1.0f, true, 4000, m_lo, t_lo);
+    assert(!c_noise.heading_settled);
+    assert(fabsf(c_noise.omega_fb_pct) > 1.0f);
+
+    /* Falsification: Off-center worn stick drift (+15% on X, past 10% deadband)
+     * must NOT make D-pad UP creep diagonally! */
+    Drive_OmniCtrl_t c_dpad;
+    Drive_OmniCtrlInit(&c_dpad, true);
+    Drive_Ps2Input_t worn_dpad = {.joy_sum = {100U, 85U}, .valid = true};
+    worn_dpad.ps2_btn[1] = DRIVE_CMD_DPAD_UP;
+    for (int k = 0; k < 20; k++) {
+      Drive_OmniCtrlStep(&c_dpad, &worn_dpad, false, 0.0f, true, 4000, m_lo, t_lo);
+    }
+    assert(fabsf(c_dpad.slew.vx_pct) < 0.01f);
+    assert(fabsf(c_dpad.slew.vy_pct - (-100.0f)) < 0.01f);
+    assert(t_lo[0] == t_lo[1] && t_lo[2] == t_lo[3] && t_lo[0] == -t_lo[2]);
 
     /* True Field-Centric (pure_field_centric = true): pressing CIRCLE (90 deg)
      * must keep field_axis_offset_deg == 0 so pushing forward at yaw=90 deg
