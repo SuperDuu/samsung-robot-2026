@@ -119,17 +119,18 @@ static void drive_extract_ps2_xy(const Drive_Ps2Input_t *in, float *out_x,
     target_x = 0.0f;
   }
 
-  /* Precision D-pad crawl via exact uint8_t if/else-if (zero bitmask ambiguity) */
+  /* Precision D-pad crawl via exact uint8_t if/else-if (zero bitmask ambiguity).
+   * Zero orthogonal worn-stick center drift (< 30%) so D-pad never creeps diagonally. */
   uint8_t cmd = in->ps2_btn[1];
-  if (target_y == 0.0f) {
+  if (drive_is_dpad_cmd(cmd) && (fabsf(target_x) <= 30.0f) &&
+      (fabsf(target_y) <= 30.0f)) {
+    target_x = 0.0f;
+    target_y = 0.0f;
     if (cmd == DRIVE_CMD_DPAD_UP) {
       target_y = -DRIVE_OMNI_DPAD_PCT;
     } else if (cmd == DRIVE_CMD_DPAD_DOWN) {
       target_y = +DRIVE_OMNI_DPAD_PCT;
-    }
-  }
-  if (target_x == 0.0f) {
-    if (cmd == DRIVE_CMD_DPAD_LEFT) {
+    } else if (cmd == DRIVE_CMD_DPAD_LEFT) {
       target_x = -DRIVE_OMNI_DPAD_PCT;
     } else if (cmd == DRIVE_CMD_DPAD_RIGHT) {
       target_x = +DRIVE_OMNI_DPAD_PCT;
@@ -440,6 +441,7 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
   float target_x = 0.0f;
   float target_y = 0.0f;
   drive_extract_ps2_xy(in, &target_x, &target_y);
+  bool translating_now = (target_x != 0.0f) || (target_y != 0.0f);
 
   float trim_sign = ctrl->heading_hold_invert ? -1.0f : 1.0f;
   if ((cmd == DRIVE_CMD_SELECT_L1) && (prev_cmd != DRIVE_CMD_SELECT_L1)) {
@@ -453,6 +455,7 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
                            trim_sign * DRIVE_OMNI_HEADING_TRIM_STEP_DEG);
     cardinal_or_diag = true;
   }
+  bool spinning_now = cardinal_or_diag || trim_rot;
 
   bool boost_3x = drive_is_boost_cmd(cmd);
   bool l1 = false; /* L1 is dedicated to 3x turbo boost, NOT left rotation */
@@ -568,7 +571,11 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
                                             ramp_accel,
                                             DRIVE_OMNI_HEADING_RAMP_DECEL);
     } else {
-      if (ctrl->heading_settled) {
+      if (translating_now) {
+        /* Wheels are already rolling dynamically: never apply stationary 1.5 deg
+         * hysteresis deadzone during slow joystick or D-pad translation! */
+        ctrl->heading_settled = false;
+      } else if (ctrl->heading_settled) {
         if (abs_err >= db_exit) {
           ctrl->heading_settled = false;
         }
@@ -616,8 +623,7 @@ void Drive_OmniCtrlStep(Drive_OmniCtrl_t *ctrl, const Drive_Ps2Input_t *in,
     ctrl->omega_fb_pct = target_w;
   }
 
-  bool translating_now = (target_x != 0.0f) || (target_y != 0.0f);
-  bool spinning_now = cardinal_or_diag || trim_rot || (!select_held && (l1 != r1));
+  spinning_now = spinning_now || (!select_held && (l1 != r1));
 
   if (translating_now || spinning_now) {
     ctrl->stop_brake_ticks = 0U;
