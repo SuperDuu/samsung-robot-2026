@@ -72,6 +72,39 @@ typedef enum
 #define RF_TDK_PS2_VALID_BIT       (1U << 2) /* PS2 responded (0x41 or 0x73) */
 #define RF_TDK_PS2_ANALOG_BIT      (1U << 3) /* PS2 in full analog mode (0x73) */
 
+/* Single-byte uint8_t TDK command codes carried in ps2_btn[1], with XOR tag in ps2_btn[0] */
+#define RF_TDK_CMD_NONE            0U
+#define RF_TDK_CMD_L2              1U
+#define RF_TDK_CMD_R2              2U
+#define RF_TDK_CMD_L1_BOOST        4U
+#define RF_TDK_CMD_L1_L2           5U
+#define RF_TDK_CMD_L1_R2           6U
+#define RF_TDK_CMD_R1_CLAMP        8U
+#define RF_TDK_CMD_TRIANGLE        16U
+#define RF_TDK_CMD_L1_TRIANGLE     20U
+#define RF_TDK_CMD_CIRCLE          32U
+#define RF_TDK_CMD_L1_CIRCLE       36U
+#define RF_TDK_CMD_CROSS           64U
+#define RF_TDK_CMD_L1_CROSS        68U
+#define RF_TDK_CMD_SQUARE          128U
+#define RF_TDK_CMD_L1_SQUARE       132U
+#define RF_TDK_CMD_SELECT          140U
+#define RF_TDK_CMD_SELECT_START    141U
+#define RF_TDK_CMD_SELECT_L1       142U
+#define RF_TDK_CMD_SELECT_R1       143U
+#define RF_TDK_CMD_L3              144U
+#define RF_TDK_CMD_R3              145U
+#define RF_TDK_CMD_START_AUTO      146U
+#define RF_TDK_CMD_SERVO1_FWD      200U
+#define RF_TDK_CMD_SERVO1_REV      201U
+#define RF_TDK_CMD_SERVO2_FWD      202U
+#define RF_TDK_CMD_SERVO2_REV      203U
+#define RF_TDK_CMD_DPAD_UP         210U
+#define RF_TDK_CMD_DPAD_RIGHT      211U
+#define RF_TDK_CMD_DPAD_DOWN       212U
+#define RF_TDK_CMD_DPAD_LEFT       213U
+#define RF_TDK_CMD_TAG_XOR         0xA5U
+
 /* Bits carried in RF_PayloadManualToAuto_t.flags */
 #define RF_MANUAL_FLAG_TDK_LINK    (1U << 0) /* Manual robot has live tdk RF link */
 #define RF_MANUAL_FLAG_SW1         (1U << 1) /* MainSamsungRB SW1 pressed */
