@@ -861,13 +861,14 @@ int main(void) {
 
       bool idle_refresh_due =
           omni_wheels_stopped &&
-          ((uint32_t)(now_ms - s_pid_last_sync_ms) >= 3000U);
+          (wheel_came_online ||
+           ((uint32_t)(now_ms - s_pid_last_sync_ms) >= 3000U));
       if (s_pid_cfg_stage == 0U) {
         if (target_ki_m != s_sent_ki_m) {
           /* Immediate Ki switch for D-pad micro-adjustment (Ki=0 wipes integral lag) */
           s_pid_cfg_stage = 1U;
           s_pid_last_sync_ms = now_ms;
-        } else if (wheel_came_online || idle_refresh_due ||
+        } else if (idle_refresh_due ||
                    (g_pidboard_vel_kp_m != s_sent_kp_m)) {
           s_pid_cfg_stage = 2U;
           s_pid_last_sync_ms = now_ms;
