@@ -196,6 +196,18 @@ int main(void) {
       HAL_GPIO_WritePin(LED_3_GPIO_Port, LED_3_Pin,
                         led3_on ? GPIO_PIN_SET : GPIO_PIN_RESET);
 
+      /* Encode mutually-exclusive uint8_t command code via if/else-if
+       * (RB2026_TX_PS2_R1 style): eliminates bitmask overlaps and bit flips.
+       * Debounce R1 across 2 consecutive 10 ms SPI polls to suppress contact/SPI glitches. */
+      static uint8_t s_r1_poll_cnt = 0U;
+      if ((du.button[0] == 0U) && (du.button[1] == RF_TDK_CMD_R1_CLAMP)) {
+        if (s_r1_poll_cnt < 255U) {
+          s_r1_poll_cnt++;
+        }
+      } else {
+        s_r1_poll_cnt = 0U;
+      }
+
       /* 50 Hz RF transmit (20 ms period -> leaves clean ~15 ms TDMA window for
        * manual->auto relay) */
       tx_div++;
@@ -207,27 +219,82 @@ int main(void) {
         cmd.joy_sum[1] = du.data[1];
         cmd.joy_left[0] = du.data2[0];
         cmd.joy_left[1] = du.data2[1];
-        uint8_t btn0 = du.button[0];
-        if (btn_pressed != 0U) {
-          btn0 |= (1U << 3); /* START button bit */
+
+        uint8_t cmd_code = RF_TDK_CMD_NONE;
+        if (du.button[1] == RF_TDK_CMD_L2) {
+          cmd_code = RF_TDK_CMD_L2;
+        } else if (du.button[1] == RF_TDK_CMD_R2) {
+          cmd_code = RF_TDK_CMD_R2;
+        } else if (du.button[1] == RF_TDK_CMD_L1_BOOST) {
+          cmd_code = RF_TDK_CMD_L1_BOOST;
+        } else if (du.button[1] == RF_TDK_CMD_L1_L2) {
+          cmd_code = RF_TDK_CMD_L1_L2;
+        } else if (du.button[1] == RF_TDK_CMD_L1_R2) {
+          cmd_code = RF_TDK_CMD_L1_R2;
+        } else if (du.button[1] == RF_TDK_CMD_R1_CLAMP) {
+          if (s_r1_poll_cnt >= 2U) {
+            cmd_code = RF_TDK_CMD_R1_CLAMP;
+          }
+        } else if (du.button[1] == RF_TDK_CMD_TRIANGLE) {
+          cmd_code = RF_TDK_CMD_TRIANGLE;
+        } else if (du.button[1] == RF_TDK_CMD_L1_TRIANGLE) {
+          cmd_code = RF_TDK_CMD_L1_TRIANGLE;
+        } else if (du.button[1] == RF_TDK_CMD_CIRCLE) {
+          cmd_code = RF_TDK_CMD_CIRCLE;
+        } else if (du.button[1] == RF_TDK_CMD_L1_CIRCLE) {
+          cmd_code = RF_TDK_CMD_L1_CIRCLE;
+        } else if (du.button[1] == RF_TDK_CMD_CROSS) {
+          cmd_code = RF_TDK_CMD_CROSS;
+        } else if (du.button[1] == RF_TDK_CMD_L1_CROSS) {
+          cmd_code = RF_TDK_CMD_L1_CROSS;
+        } else if (du.button[1] == RF_TDK_CMD_SQUARE) {
+          cmd_code = RF_TDK_CMD_SQUARE;
+        } else if (du.button[1] == RF_TDK_CMD_L1_SQUARE) {
+          cmd_code = RF_TDK_CMD_L1_SQUARE;
         }
-        /* Right Stick (du.data2) overrides tx_buf[4] with special servo command codes:
-         * 200: Right Stick UP (<20)    -> Servo 1 quay thuận
-         * 201: Right Stick DOWN (>80)  -> Servo 1 quay ngược
-         * 202: Right Stick LEFT (<20)  -> Servo 2 quay thuận
-         * 203: Right Stick RIGHT (>80) -> Servo 2 quay ngược
-         */
+
+        /* Right Stick (du.data2) servo commands */
         if (du.data2[0] < 20U) {
-          btn0 = 200U;
+          cmd_code = RF_TDK_CMD_SERVO1_FWD;
         } else if (du.data2[0] > 80U) {
-          btn0 = 201U;
+          cmd_code = RF_TDK_CMD_SERVO1_REV;
         } else if (du.data2[1] < 20U) {
-          btn0 = 202U;
+          cmd_code = RF_TDK_CMD_SERVO2_FWD;
         } else if (du.data2[1] > 80U) {
-          btn0 = 203U;
+          cmd_code = RF_TDK_CMD_SERVO2_REV;
         }
-        cmd.ps2_btn[0] = btn0;
-        cmd.ps2_btn[1] = du.button[1];
+
+        /* Center/D-pad buttons (du.button[0]) & PB3 button override into disjoint [140..213] codes */
+        if (btn_pressed != 0U) {
+          cmd_code = RF_TDK_CMD_START_AUTO;
+        } else if (du.button[0] == 1U) {
+          if (du.button[1] == 0U) {
+            cmd_code = RF_TDK_CMD_SELECT;
+          } else if (du.button[1] == 4U) {
+            cmd_code = RF_TDK_CMD_SELECT_L1;
+          } else if (du.button[1] == 8U) {
+            cmd_code = RF_TDK_CMD_SELECT_R1;
+          }
+        } else if (du.button[0] == 9U) {
+          cmd_code = RF_TDK_CMD_SELECT_START;
+        } else if (du.button[0] == 2U) {
+          cmd_code = RF_TDK_CMD_L3;
+        } else if (du.button[0] == 4U) {
+          cmd_code = RF_TDK_CMD_R3;
+        } else if (du.button[0] == 8U) {
+          cmd_code = RF_TDK_CMD_START_AUTO;
+        } else if (du.button[0] == 16U) {
+          cmd_code = RF_TDK_CMD_DPAD_UP;
+        } else if (du.button[0] == 32U) {
+          cmd_code = RF_TDK_CMD_DPAD_RIGHT;
+        } else if (du.button[0] == 64U) {
+          cmd_code = RF_TDK_CMD_DPAD_DOWN;
+        } else if (du.button[0] == 128U) {
+          cmd_code = RF_TDK_CMD_DPAD_LEFT;
+        }
+
+        cmd.ps2_btn[1] = cmd_code;
+        cmd.ps2_btn[0] = (uint8_t)(cmd_code ^ RF_TDK_CMD_TAG_XOR);
         cmd.ext_sw = (sw_pressed ? RF_TDK_EXT_SW_BIT : 0U) |
                      (btn_pressed ? RF_TDK_EXT_BUTTON_BIT : 0U) |
                      (ps2_valid ? RF_TDK_PS2_VALID_BIT : 0U) |
