@@ -444,6 +444,11 @@ int main(void) {
 
     g_tdk_link_ok =
         RF_HC12_IsLinkAlive(&g_rf, now_ms, RF_HC12_DEFAULT_TIMEOUT_MS);
+    bool cmd_tag_ok =
+        g_tdk_link_ok &&
+        (g_tdk_cmd.ps2_btn[0] ==
+         (uint8_t)(g_tdk_cmd.ps2_btn[1] ^ DRIVE_CMD_TAG_XOR));
+    uint8_t btn_cmd = cmd_tag_ok ? g_tdk_cmd.ps2_btn[1] : DRIVE_CMD_NONE;
     bool ps2_valid =
         g_tdk_link_ok && ((g_tdk_cmd.ext_sw & RF_TDK_PS2_VALID_BIT) != 0U);
     if (!g_tdk_link_ok && (g_servo_test_cmd == 0U) &&
@@ -485,17 +490,23 @@ int main(void) {
     static uint32_t s_imu_cal_led_start_ms = 0U;
     static uint32_t s_imu_cal_ok_since_ms = 0U;
 
-    /* PS2 L3 zeros field heading; Select clears PidBoard faults; ext_sw selects
-     * Blue/Red field axis */
+    /* PS2 L3 zeros field heading; Select clears PidBoard faults; R1 toggles clamp
+     * via pure uint8_t exact equality + 2-frame RF confirmation (immune to L1 EMI) */
+    static uint8_t s_r1_confirm_cnt = 0U;
     if (ps2_valid) {
-      uint8_t raw_btn0 = g_tdk_cmd.ps2_btn[0];
-      uint8_t clean_btn0 = (raw_btn0 < 200U) ? raw_btn0 : 0U;
-      uint8_t l3_now =
-          ((clean_btn0 & DRIVE_PS2_B0_L3) != 0U) ? 1U : 0U;
-      uint8_t select_now =
-          ((clean_btn0 & DRIVE_PS2_B0_SELECT) != 0U) ? 1U : 0U;
-      uint8_t r1_now =
-          ((g_tdk_cmd.ps2_btn[1] & DRIVE_PS2_B1_R1) != 0U) ? 1U : 0U;
+      if (forward_now) {
+        if (btn_cmd == DRIVE_CMD_R1_CLAMP) {
+          if (s_r1_confirm_cnt < 255U) {
+            s_r1_confirm_cnt++;
+          }
+        } else {
+          s_r1_confirm_cnt = 0U;
+        }
+      }
+
+      uint8_t l3_now = (btn_cmd == DRIVE_CMD_L3) ? 1U : 0U;
+      uint8_t select_now = (btn_cmd == DRIVE_CMD_SELECT) ? 1U : 0U;
+      uint8_t r1_now = (s_r1_confirm_cnt >= 2U) ? 1U : 0U;
       Drive_OmniCtrlSetBlueSide(&g_omni_ctrl,
                                 (g_tdk_cmd.ext_sw & RF_TDK_EXT_SW_BIT) == 0U);
       if ((l3_now != 0U) && (g_prev_l3_btn == 0U) && g_imu.connected) {
@@ -507,7 +518,7 @@ int main(void) {
         MainSamsungRB_ClearWheelFaults();
       }
       if ((r1_now != 0U) && (g_prev_r1_btn == 0U)) {
-        /* R1 toggle: initial 0 deg (closed), 1st press opens to 40 deg, 2nd press closes to 0 deg */
+        /* R1 toggle: initial 0 deg (closed), 1st press opens to 35 deg, 2nd press closes to 0 deg */
         g_clamp_opened = !g_clamp_opened;
         float clamp_angle = g_clamp_opened ? SERVO_CLAMP_DEFAULT_OPEN_DEG
                                            : SERVO_CLAMP_DEFAULT_CLOSE_DEG;
@@ -521,14 +532,12 @@ int main(void) {
       g_prev_select_btn = select_now;
       g_prev_r1_btn = r1_now;
 
-      /* BNO085 9-DOF Flash calibration buttons (tx_buf[4] = ps2_btn[0]):
-       *  - Hold SELECT (1) alone >= 1.0s -> Save DCD into BNO085 internal Flash
-       *  - Hold START  (8) alone >= 2.0s -> Clear DCD & reset BNO085 to
-       * recalibrate */
+      /* BNO085 9-DOF Flash calibration buttons (exact uint8_t command codes):
+       *  - Hold SELECT (140) >= 1.0s -> Save DCD into BNO085 internal Flash
+       *  - Hold START  (146) >= 2.0s -> Clear DCD & reset BNO085 to recalibrate */
       static uint32_t s_sel_hold_start_ms = 0U;
       static bool s_sel_hold_fired = false;
-      bool sel_only = (clean_btn0 == DRIVE_PS2_B0_SELECT) &&
-                      (g_tdk_cmd.ps2_btn[1] == 0U);
+      bool sel_only = (btn_cmd == DRIVE_CMD_SELECT);
       if (sel_only) {
         if (s_sel_hold_start_ms == 0U) {
           s_sel_hold_start_ms = now_ms;
@@ -544,8 +553,7 @@ int main(void) {
 
       static uint32_t s_start_hold_start_ms = 0U;
       static bool s_start_hold_fired = false;
-      bool start_only = (clean_btn0 == DRIVE_PS2_B0_START) &&
-                        (g_tdk_cmd.ps2_btn[1] == 0U);
+      bool start_only = (btn_cmd == DRIVE_CMD_START_AUTO);
       if (start_only) {
         if (s_start_hold_start_ms == 0U) {
           s_start_hold_start_ms = now_ms;
@@ -559,6 +567,7 @@ int main(void) {
         s_start_hold_fired = false;
       }
     } else {
+      s_r1_confirm_cnt = 0U;
       g_prev_l3_btn = 0U;
       g_prev_select_btn = 0U;
       g_prev_r1_btn = 0U;
@@ -680,7 +689,7 @@ int main(void) {
     float active_speed =
         (g_debug.servo.speed_pct != 0) ? (float)g_debug.servo.speed_pct : 70.0f;
 
-    uint8_t servo_cmd = (g_tdk_link_ok && !g_estop_latched) ? g_tdk_cmd.ps2_btn[0] : 0U;
+    uint8_t servo_cmd = !g_estop_latched ? btn_cmd : DRIVE_CMD_NONE;
 
     if (g_servo_test_pulse != 0U) {
       /* Direct microsecond pulse test (e.g. 1000..2000 us) to calibrate modded
@@ -695,19 +704,19 @@ int main(void) {
     } else if (live_cmd == 2U) {
       Servo_SetSpeed360(SERVO_CH_4, -active_speed);
       Servo_Stop(SERVO_CH_5);
-    } else if (servo_cmd == 200U) {
+    } else if (servo_cmd == DRIVE_CMD_SERVO1_FWD) {
       /* Right Stick UP: Servo 1 quay thuận */
       Servo_SetSpeed360(SERVO_CH_4, active_speed);
       Servo_Stop(SERVO_CH_5);
-    } else if (servo_cmd == 201U) {
+    } else if (servo_cmd == DRIVE_CMD_SERVO1_REV) {
       /* Right Stick DOWN: Servo 1 quay ngược */
       Servo_SetSpeed360(SERVO_CH_4, -active_speed);
       Servo_Stop(SERVO_CH_5);
-    } else if (servo_cmd == 202U) {
+    } else if (servo_cmd == DRIVE_CMD_SERVO2_FWD) {
       /* Right Stick LEFT: Servo 2 quay thuận */
       Servo_Stop(SERVO_CH_4);
       Servo_SetSpeed360(SERVO_CH_5, active_speed);
-    } else if (servo_cmd == 203U) {
+    } else if (servo_cmd == DRIVE_CMD_SERVO2_REV) {
       /* Right Stick RIGHT: Servo 2 quay ngược */
       Servo_Stop(SERVO_CH_4);
       Servo_SetSpeed360(SERVO_CH_5, -active_speed);
@@ -772,8 +781,8 @@ int main(void) {
       Drive_Ps2Input_t ps2_in = {0};
       ps2_in.joy_sum[0] = g_tdk_cmd.joy_sum[0];
       ps2_in.joy_sum[1] = g_tdk_cmd.joy_sum[1];
-      ps2_in.ps2_btn[0] = g_tdk_cmd.ps2_btn[0];
-      ps2_in.ps2_btn[1] = g_tdk_cmd.ps2_btn[1];
+      ps2_in.ps2_btn[0] = 0U;
+      ps2_in.ps2_btn[1] = btn_cmd;
       ps2_in.valid = ps2_valid;
 
       uint8_t modes[DRIVE_OMNI_WHEEL_COUNT] = {0};
@@ -890,14 +899,10 @@ int main(void) {
     }
 
     /* 6. Forward state to Autonomous Robot (MainRB2 = RF_NODE_AUTO) when
-     * user presses START / Button on TDK */
+     * user presses START (146) on TDK via exact uint8_t match */
     /* When no button is pressed or released: HC-12 remains 100% silent in RX
-     * listen mode (NO TX) to avoid channel congestion and prevent spurious transmissions during servo moves */
-    uint8_t clean_btn0_auto =
-        (g_tdk_cmd.ps2_btn[0] < 200U) ? g_tdk_cmd.ps2_btn[0] : 0U;
-    bool trigger_auto =
-        g_tdk_link_ok && (((clean_btn0_auto & DRIVE_PS2_B0_START) != 0U) ||
-                          ((g_tdk_cmd.ext_sw & RF_TDK_EXT_BUTTON_BIT) != 0U));
+     * listen mode (NO TX) to avoid channel congestion and prevent spurious transmissions */
+    bool trigger_auto = g_tdk_link_ok && (btn_cmd == DRIVE_CMD_START_AUTO);
 
     static bool s_prev_trigger_auto = false;
     static uint8_t s_auto_burst_cnt = 0U;
@@ -957,8 +962,8 @@ int main(void) {
       auto_msg.limit_mask = CD4067_GetLimitMask();
       auto_msg.arg0 = (int16_t)g_tdk_cmd.joy_left[0];
       auto_msg.arg1 = (int16_t)g_tdk_cmd.joy_left[1];
-      auto_msg.arg2 = (int16_t)(((uint16_t)g_tdk_cmd.ps2_btn[1] << 8U) |
-                                clean_btn0_auto);
+      auto_msg.arg2 = (int16_t)(((uint16_t)btn_cmd << 8U) |
+                                ((btn_cmd == DRIVE_CMD_START_AUTO) ? DRIVE_PS2_B0_START : 0U));
       auto_msg.arg3 = (int16_t)(g_imu.yaw * 10.0f);
       (void)RF_HC12_SendManualToAuto(&g_rf, RF_NODE_AUTO, &auto_msg);
     }
