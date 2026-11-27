@@ -47,6 +47,12 @@ typedef enum {
 } MainRB2_DriveMode_t;
 
 typedef enum {
+  CALIB_FB_NONE = 0U,
+  CALIB_FB_SUCCESS = 1U,
+  CALIB_FB_ERROR = 2U
+} CalibFeedback_t;
+
+typedef enum {
   PIDBOARD_TEST_OFF = 0U,
   PIDBOARD_TEST_ACTIVE,
   PIDBOARD_TEST_R2_BUSY,
@@ -74,6 +80,8 @@ typedef enum {
   TRACK_FSM_BAUMER_BRAKING,    /* BAUMER phat hien -> phanh cung 150ms de xe dung han va boc lo do lech */
   TRACK_FSM_BAUMER_ALIGNING,   /* Sau khi dung han -> xoay tai cho nan dung goc IMU */
   TRACK_FSM_OMRON_WAIT_2S,     /* OMRON phat hien khi chay tien -> dung lai cho 2 giay */
+  TRACK_FSM_BAUMER_3RD_PASS,   /* Lan mo thu 3: BAUMER bat -> chay 100 RPM cho toi khi BAUMER tat */
+  TRACK_FSM_BAUMER_3RD_TURN_CW_15, /* Lan mo thu 3: BAUMER da tat -> quay phai 15 do CW roi dap servo */
   TRACK_FSM_BAUMER_STRUCK,     /* Da nan dung goc -> khoa banh va dap servo xuong 240 do theo MCP */
   TRACK_FSM_CANCELLED          /* Bi huy boi estop hoac nut bam SW1 */
 } TrackFsm_t;
@@ -89,30 +97,43 @@ typedef enum {
 #define STRAIGHT_TEST_DURATION_MS 1000U
 #define STRAIGHT_TEST_MAX_RPMX10 1000
 #define FRONT_LINE_SWEEP_TIMEOUT_MS 100U
-#define FRONT_LINE_CRUISE_RPMX10 1200
+#define FRONT_LINE_CRUISE_RPMX10 1450
 #define LINE_CAL_STABLE_SAMPLES 25U /* 250 ms at the 10 ms control tick */
 #define LINE_CAL_STABILITY_ADC 150
 #define LINE_CAL_SURFACE_TIMEOUT_MS 60000U
-#define SW2_CAL_HOLD_MS 800U
-#define BAUMER_SERVO_IDLE_DEG 30.0f
+#define CALIB_FB_SUCCESS_MS 600U
+#define CALIB_FB_ERROR_MS 800U
+#define BAUMER_SERVO_INIT_DEG 0.0f
+#define BAUMER_SERVO_IDLE_DEG 230.0f
 #define BAUMER_SERVO_ACTIVE_DEG 240.0f
-#define BAUMER_SERVO_RAMP_MS 1200U       /* Thoi gian ramp servo MCP (1200 ms cho hanh trinh dai 30 -> 240 do em ai) */
-#define BAUMER_BRAKE_SETTLE_MS 150U      /* Thoi gian phanh dung han truoc khi bat dau nan goc (150 ms) */
-#define BAUMER_ALIGN_TOLERANCE_DEG 0.5f  /* Dung sai goc de coi la da nan dung (do) */
-#define BAUMER_ALIGN_MIN_RPMX10 50       /* Toc do xoay nan goc toi thieu de thang ma sat san (5 RPM) */
-#define BAUMER_ALIGN_MAX_RPMX10 250      /* Toc do xoay nan goc toi da (25 RPM) */
-#define BAUMER_ALIGN_TIMEOUT_MS 1200U    /* Timeout an toan nan goc (1.2 giay) */
+#define BAUMER_SERVO_RAMP_MS 150U        /* Thoi gian ramp ngan 220 <-> 240 do (250 ms) */
+#define BAUMER_SERVO_LONG_RAMP_MS 1000U  /* Thoi gian ramp hanh trinh dai 0 <-> 240 do tu tu, khong giat (1400 ms) */
+#define BAUMER_BRAKE_SETTLE_MS 120U      /* Thoi gian phanh dung han truoc khi bat dau nan goc (120 ms) */
+#define BAUMER_ALIGN_TOLERANCE_DEG 1.0f  /* Dung sai goc de coi la da nan dung (1.0 do) */
+#define BAUMER_ALIGN_MIN_RPMX10 250       /* Toc do xoay nan goc toi thieu (25 RPM - em, khong nay qua vung dung sai) */
+#define BAUMER_ALIGN_MAX_RPMX10 1000      /* Toc do xoay nan goc toi da (100 RPM) */
+#define BAUMER_ALIGN_TIMEOUT_MS 1500U    /* Watchdog an toan nan goc (1.5s - uu tien chot theo IMU) */
+#define BAUMER_3RD_TRIGGER_INDEX 3U      /* Lan mo/bat thu 3 cua BAUMER */
+#define BAUMER_3RD_PASS_RPMX10 1000      /* Toc do di qua hop lan thu 3 (100 RPM) */
+#define BAUMER_3RD_OFF_DEBOUNCE_MS 200U  /* Loc nhieu khi BAUMER tat */
+#define BAUMER_3RD_TURN_CW_DEG 20.0f     /* Goc quay phai sau khi BAUMER tat o lan thu 3 (20 do) */
+#define BAUMER_3RD_TURN_TIMEOUT_MS 2500U /* Watchdog an toan quay phai 15 do (uu tien du goc IMU) */
+#define OBSTACLE_RESUME_DELAY_MS 1000U   /* Thoi gian cho sau khi het vat can Omron/Autonics moi di tiep (1.0 giay) */
 #define OMRON_CONFIRM_WAIT_MS 2000U      /* Wait 2s before checking if OMRON is still active */
-#define REVERSE_SWEEP_RPMX10 -2000       /* Toc do lui thang quet line toi da (-200 RPM - tang gap 2) */
-#define REVERSE_SWEEP_START_RPMX10 -200  /* Toc do lui khoi dau em ai (-20 RPM) */
-#define REVERSE_SWEEP_RAMP_MS 600U       /* Thoi gian ramp tang toc lui tu tu (600 ms) */
+#define REVERSE_SWEEP_RPMX10 -2500       /* Toc do lui thang quet line toi da (-250 RPM) */
+#define REVERSE_SWEEP_START_RPMX10 -800  /* Toc do lui khoi dau em ai (-25 RPM - chong truot banh) */
+#define REVERSE_SWEEP_END_RPMX10 -1250    /* Toc do lui ra cham khi bat line (-50 RPM) */
+#define REVERSE_SWEEP_RAMP_MS 400U       /* Thoi gian tang toc MCP em ai khi lui (0.5 giay) */
+#define REVERSE_SWEEP_HOLD_MS 1500U       /* Thoi gian giu toc do dat khi lui (0.45 giay) */
+#define REVERSE_SWEEP_DECEL_MS 150U      /* Thoi gian giam toc dan truoc khi bat line (0.25 giay) */
 #define REVERSE_SWEEP_REAR_MASK 0x00F8U  /* Mat line sau IN8..IN4 (kenh 7..3) */
 #define REVERSE_SWEEP_FRONT_MASK 0x0F00U /* Mat line truoc IN9..IN12 (kenh 8..11) */
 #define TURN_CW_30_DEG 30.0f             /* Goc xoay CW (30 do) */
 #define TURN_CW_TOLERANCE_DEG 1.0f       /* Dung sai goc xoay (do) */
-#define TURN_CW_MIN_RPMX10 100           /* Toc do xoay toi thieu (10 RPM - manh gap 2) */
-#define TURN_CW_MAX_RPMX10 400           /* Toc do xoay toi da (40 RPM - manh gap 2) */
-#define TURN_CW_TIMEOUT_MS 2000U         /* Timeout quay an toan (2 giay) */
+#define TURN_CW_BRAKE_MS 60U             /* Thoi gian phanh dung truoc khi quay CW (60 ms) */
+#define TURN_CW_MIN_RPMX10 250           /* Toc do ra toi thieu gan dich (25 RPM - tranh nay qua goc) */
+#define TURN_CW_MAX_RPMX10 2000          /* Toc do xoay toi da (200 RPM) */
+#define TURN_CW_TIMEOUT_MS 2500U         /* Watchdog an toan quay CW (uu tien du goc IMU) */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -170,8 +191,8 @@ static Drive_StraightState_t g_line_straight = {0};
 static uint32_t g_line_sweep_seq = 0U;
 static uint32_t g_line_sweep_ms = 0U;
 static const Drive_LineGains_t g_front_line_gains = {
-    .kp_rpmx10_per_err = 10,
-    .kd_rpmx10_per_derr = 4,
+    .kp_rpmx10_per_err = 12,
+    .kd_rpmx10_per_derr = 3,
     .max_abs_rpm_x10 = DRIVE_DEFAULT_MAX_RPMX10,
 };
 static const Drive_LineGains_t g_line_gains = {DRIVE_LINE_KP_DEFAULT,
@@ -195,36 +216,50 @@ static bool g_estop_latched = false;
 static bool g_clear_faults_pending = false;
 static uint32_t g_last_imu_tick_ms = 0U;
 static bool g_pending_sw1_edge = false;
-static bool g_pending_sw2_cal_edge = false;
-static bool g_sw2_long_handled = false;
+static CalibFeedback_t s_calib_feedback_state = CALIB_FB_NONE;
+static uint32_t s_calib_feedback_start_ms = 0U;
 static float g_prev_arm_deg = -1.0f;
 volatile float g_servo_ch4_angle_deg = 0.0f; /* Commanded T12C2 angle */
-volatile uint32_t g_baumer_servo_ramp_ms = BAUMER_SERVO_RAMP_MS;    /* Thoi gian ramp MCP (ms) - live-tunable */
-volatile float g_baumer_servo_active_deg = BAUMER_SERVO_ACTIVE_DEG; /* Goc dap active (do) - live-tunable */
-volatile float g_baumer_servo_idle_deg = BAUMER_SERVO_IDLE_DEG;     /* Goc nghi idle (do) - live-tunable */
+volatile uint32_t g_baumer_servo_ramp_ms = BAUMER_SERVO_RAMP_MS;           /* Ramp ngan 220<->240 (ms) - live-tunable */
+volatile uint32_t g_baumer_servo_long_ramp_ms = BAUMER_SERVO_LONG_RAMP_MS; /* Ramp dai 0<->240 (ms) - live-tunable */
+volatile float g_baumer_servo_active_deg = BAUMER_SERVO_ACTIVE_DEG;        /* Goc dap active (do) - live-tunable */
+volatile float g_baumer_servo_idle_deg = BAUMER_SERVO_IDLE_DEG;     /* Goc cho bam line (do) - live-tunable */
+volatile float g_baumer_servo_init_deg = BAUMER_SERVO_INIT_DEG;     /* Goc INIT khi chua chay (do) - live-tunable */
 volatile int16_t g_line_cruise_rpm_x10 = FRONT_LINE_CRUISE_RPMX10;   /* Toc do chay line (1200 = 120 RPM) - live-tunable */
-volatile int16_t g_reverse_sweep_rpm_x10 = REVERSE_SWEEP_RPMX10;             /* Toc do lui max (-2000 = -200 RPM) - live-tunable */
-volatile int16_t g_reverse_sweep_start_rpm_x10 = REVERSE_SWEEP_START_RPMX10; /* Toc do lui khoi dau (-200 = -20 RPM) - live-tunable */
-volatile uint32_t g_reverse_sweep_ramp_ms = REVERSE_SWEEP_RAMP_MS;           /* Thoi gian ramp tang toc lui (ms) - live-tunable */
-volatile bool g_autonics_active = false; /* True when AUTONICS_INPUT (PB0) is high */
+volatile int16_t g_reverse_sweep_rpm_x10 = REVERSE_SWEEP_RPMX10;             /* Toc do lui max (-2500 = -250 RPM) - live-tunable */
+volatile int16_t g_reverse_sweep_start_rpm_x10 = REVERSE_SWEEP_START_RPMX10; /* Toc do lui khoi dau (-300 = -30 RPM) - live-tunable */
+volatile int16_t g_reverse_sweep_end_rpm_x10 = REVERSE_SWEEP_END_RPMX10;     /* Toc do lui giam dan (-400 = -40 RPM) - live-tunable */
+volatile uint32_t g_reverse_sweep_ramp_ms = REVERSE_SWEEP_RAMP_MS;           /* Thoi gian tang deu (600 ms) - live-tunable */
+volatile uint32_t g_reverse_sweep_hold_ms = REVERSE_SWEEP_HOLD_MS;           /* Thoi gian giu toc do (1000 ms) - live-tunable */
+volatile uint32_t g_reverse_sweep_decel_ms = REVERSE_SWEEP_DECEL_MS;         /* Thoi gian giam dan (1000 ms) - live-tunable */
+volatile bool g_autonics_active = false; /* True when AUTONICS_INPUT (PB0) is low (NPN active-low) */
 volatile bool g_baumer_active = false;   /* True when BAUMER_INPUT (PB1) is high */
-volatile bool g_omron_active = false;    /* True when OMRON_INPUT (PB9) is high */
+volatile bool g_omron_active = false;    /* True when OMRON_INPUT (PB9) is low (NPN active-low) */
 volatile float g_baumer_yaw_at_stop_deg = NAN;
 static TrackFsm_t g_track_fsm = TRACK_FSM_CRUISE;
 static uint32_t g_baumer_brake_start_ms = 0U;
 static uint32_t g_baumer_align_start_ms = 0U;
 static uint32_t g_baumer_struck_ms = 0U;
-static uint32_t g_omron_wait_start_ms = 0U;
+/* static uint32_t g_omron_wait_start_ms = 0U; */
 static uint8_t g_baumer_aligned_cycles = 0U;
 static int8_t g_line_direction = +1; /* +1 = Forward (front line), -1 = Reverse (rear line) */
 static bool g_omron_reversed = false;
 static uint16_t g_sweep_seen_mask = 0U;
 static Drive_StraightState_t g_reverse_straight = {0};
+static float g_reverse_yaw_integral = 0.0f;
+static float g_reverse_cmd_rpm_f = 0.0f;
 static uint32_t g_reverse_sweep_start_ms = 0U;
 static float g_turn_cw_target_yaw_deg = 0.0f;
 static uint8_t g_turn_cw_aligned_cycles = 0U;
 static uint32_t g_turn_cw_start_ms = 0U;
 static bool g_baumer_must_release = false;
+volatile uint8_t g_baumer_trigger_count = 0U;
+volatile int16_t g_baumer_3rd_pass_rpm_x10 = BAUMER_3RD_PASS_RPMX10;
+volatile float g_baumer_3rd_turn_deg = BAUMER_3RD_TURN_CW_DEG;
+static uint32_t g_baumer_3rd_off_start_ms = 0U;
+volatile uint32_t g_obstacle_resume_delay_ms = OBSTACLE_RESUME_DELAY_MS;
+volatile bool g_obstacle_hold_active = false;
+static uint32_t g_obstacle_last_seen_ms = 0U;
 volatile struct {
   uint8_t enable; /* Debugger request; status reports whether it was accepted. */
   uint8_t node_id;
@@ -274,6 +309,65 @@ static bool main_apply_saved_line_calibration(void) {
          ((g_flash_cal.flags & FLASH_CAL_FLAG_LINE_VALID) != 0U) &&
          CD4067_ApplyTwoPointCal(g_flash_cal.cal_min, g_flash_cal.cal_max,
                                 g_flash_cal.line_on_high);
+}
+
+static void main_save_two_point_cal_to_flash(void) {
+  if (!g_flash_cal_loaded) {
+    FlashCal_InitDefaults(&g_flash_cal);
+  }
+  g_flash_cal.seq++;
+  g_flash_cal.flags |= FLASH_CAL_FLAG_LINE_VALID;
+  CD4067_ExportTwoPointCal(g_flash_cal.cal_min, g_flash_cal.cal_max,
+                           &g_flash_cal.line_on_high);
+  if (g_imu.connected && g_imu.healthy) {
+    BNO055_IMU_ZeroYaw(&g_imu);
+    g_flash_cal.imu_field_offset_deg = g_imu.yaw;
+    g_flash_cal.flags |= FLASH_CAL_FLAG_IMU_VALID;
+    if (g_imu.chip_id == 0x85U) {
+      (void)BNO08X_SaveCalibration(&hi2c3, g_imu.i2c_addr);
+    }
+  }
+  g_flash_cal_loaded = FlashCal_Save(&g_flash_cal);
+}
+
+static void MainRB2_UpdateStatusLeds(uint32_t now_ms) {
+  /* 1. Dang quet calib 2 diem (White/Black): ca 11 LED nhay dong bo 4 Hz */
+  if (CD4067_IsTwoPointCalRecording()) {
+    bool blink_on = ((now_ms / 125U) & 1U) == 0U;
+    CD4067_SetAllLineLeds(blink_on);
+    return;
+  }
+
+  /* 2. Bao hieu ket qua sau khi ket thuc calib */
+  if (s_calib_feedback_state == CALIB_FB_SUCCESS) {
+    if ((uint32_t)(now_ms - s_calib_feedback_start_ms) < CALIB_FB_SUCCESS_MS) {
+      CD4067_SetAllLineLeds(true);
+      return;
+    }
+    s_calib_feedback_state = CALIB_FB_NONE;
+  } else if (s_calib_feedback_state == CALIB_FB_ERROR) {
+    if ((uint32_t)(now_ms - s_calib_feedback_start_ms) < CALIB_FB_ERROR_MS) {
+      bool err_blink = ((now_ms / 50U) & 1U) == 0U;
+      CD4067_SetAllLineLeds(false);
+      CD4067_SetLineLed(0U, err_blink);
+      CD4067_SetLineLed(CD4067_NUM_LINE_SENSORS - 1U, err_blink);
+      return;
+    }
+    s_calib_feedback_state = CALIB_FB_NONE;
+  }
+
+  /* 3. Binh thuong (Idle / Chay line): Hien thi 1:1 theo 11 mat doc (0..10) */
+  uint16_t all_mask = cd4067_data.active_mask;
+  for (uint8_t i = 0U; i < CD4067_NUM_LINE_SENSORS; i++) {
+    bool is_on = ((all_mask & (uint16_t)(1U << i)) != 0U);
+    CD4067_SetLineLed(i, is_on);
+  }
+
+  /* 4. Autonics hoac Omron phat hien vat can (ke ca trong 1s cho di tiep): LED L6 nhay nhanh */
+  if (g_obstacle_hold_active || g_autonics_active || g_omron_active) {
+    bool obs_blink = ((now_ms / 100U) & 1U) == 0U;
+    CD4067_SetLineLed(5U, obs_blink);
+  }
 }
 
 static void main_cancel_auto_calibration(uint32_t now_ms) {
@@ -335,7 +429,7 @@ static bool main_step_line_calibration(uint32_t now_ms) {
   }
 
   if ((request == LINE_CAL_WHITE) && (phase != LINE_CAL_WHITE)) {
-    if (auto_sweeping) {
+    if (auto_sweeping || CD4067_IsTwoPointCalRecording()) {
       main_cancel_auto_calibration(now_ms);
     }
     phase = LINE_CAL_WHITE;
@@ -431,6 +525,74 @@ static bool main_straight_step(Drive_StraightState_t *state, int16_t target,
                     (uint32_t)(now_ms - feedback.yaw_ms) <= STRAIGHT_IMU_FRESH_MS;
   Drive_StraightStep(state, target, max_rpm_x10, g_estop_latched, &feedback, modes, targets);
   return feedback.wheels_ok;
+}
+
+/* Khoa goc IMU PID (P + I + D) rieng cho pha lui quet line de giu dau xe thang tuyet doi khi tang toc */
+static void main_reverse_straight_step(int16_t target_rpm_x10, uint32_t now_ms,
+                                       uint8_t modes[DRIVE_DIFF_WHEEL_COUNT],
+                                       int16_t targets[DRIVE_DIFF_WHEEL_COUNT]) {
+  if (g_estop_latched || (target_rpm_x10 == 0)) {
+    g_reverse_straight = (Drive_StraightState_t){0};
+    g_reverse_yaw_integral = 0.0f;
+    Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+    return;
+  }
+
+  bool imu_ok = g_imu.connected && g_imu.healthy &&
+                ((uint32_t)(now_ms - g_imu.last_ok_ms) <= STRAIGHT_IMU_FRESH_MS);
+  if (!imu_ok || !isfinite(g_imu.yaw)) {
+    (void)main_straight_step(&g_reverse_straight, target_rpm_x10,
+                             DRIVE_DEFAULT_MAX_RPMX10, modes, targets);
+    return;
+  }
+
+  float cur_yaw = g_imu.yaw;
+  uint32_t yaw_ms = g_imu.last_ok_ms;
+  if (!g_reverse_straight.heading_locked) {
+    g_reverse_straight.yaw_target_deg = cur_yaw;
+    g_reverse_straight.previous_yaw_deg = cur_yaw;
+    g_reverse_straight.previous_yaw_ms = yaw_ms;
+    g_reverse_straight.yaw_rate_dps = 0.0f;
+    g_reverse_straight.heading_locked = true;
+    g_reverse_yaw_integral = 0.0f;
+  } else {
+    uint32_t dt_ms = (uint32_t)(yaw_ms - g_reverse_straight.previous_yaw_ms);
+    if ((dt_ms > 0U) && (dt_ms <= 100U)) {
+      float step = Drive_WrapAngleDeg(cur_yaw - g_reverse_straight.previous_yaw_deg);
+      float rate = step * 1000.0f / (float)dt_ms;
+      g_reverse_straight.yaw_rate_dps += 0.25f * (rate - g_reverse_straight.yaw_rate_dps);
+    } else if (dt_ms > 100U) {
+      g_reverse_straight.yaw_rate_dps = 0.0f;
+    }
+    g_reverse_straight.previous_yaw_deg = cur_yaw;
+    g_reverse_straight.previous_yaw_ms = yaw_ms;
+  }
+
+  float yaw_err = Drive_WrapAngleDeg(g_reverse_straight.yaw_target_deg - cur_yaw);
+  g_reverse_yaw_integral += yaw_err * 0.01f;
+  if (g_reverse_yaw_integral > 15.0f) {
+    g_reverse_yaw_integral = 15.0f;
+  } else if (g_reverse_yaw_integral < -15.0f) {
+    g_reverse_yaw_integral = -15.0f;
+  }
+
+  float angular = 95.0f * yaw_err + 45.0f * g_reverse_yaw_integral - 4.5f * g_reverse_straight.yaw_rate_dps;
+  float abs_lin = fabsf((float)target_rpm_x10);
+  float trim_limit = 0.50f * abs_lin;
+  if (trim_limit < 250.0f) {
+    trim_limit = abs_lin; /* Giu banh khong quay nguoc chieu tien khi moi khoi dong */
+  }
+  if (trim_limit > 700.0f) {
+    trim_limit = 700.0f;
+  }
+  if (angular > trim_limit) {
+    angular = trim_limit;
+  } else if (angular < -trim_limit) {
+    angular = -trim_limit;
+  }
+
+  int16_t trim = (int16_t)(angular >= 0.0f ? (angular + 0.5f) : (angular - 0.5f));
+  Drive_DiffCompute(target_rpm_x10, trim, DRIVE_DEFAULT_MAX_RPMX10, false, modes, targets);
 }
 
 static void main_apply_pidboard_test(uint32_t now_ms,
@@ -559,16 +721,99 @@ static inline float main_mcp_servo_ramp(float start_deg, float target_deg, uint3
 
 static int16_t main_calc_eff_line_rpm(int16_t base_rpm, uint32_t now_ms) {
   (void)now_ms;
+  if (g_track_fsm == TRACK_FSM_BAUMER_3RD_PASS) {
+    return (g_line_direction >= 0) ? g_baumer_3rd_pass_rpm_x10 : -g_baumer_3rd_pass_rpm_x10;
+  }
   if (g_track_fsm == TRACK_FSM_CRUISE) {
     return (g_line_direction >= 0) ? g_line_cruise_rpm_x10 : -g_line_cruise_rpm_x10;
   }
   return base_rpm;
 }
 
+/* Phanh ngan TURN_CW_BRAKE_MS roi xoay phai CW bang PD IMU toi g_turn_cw_target_yaw_deg */
+static bool main_step_turn_cw(uint32_t now_ms, uint32_t timeout_ms,
+                              uint8_t modes[DRIVE_DIFF_WHEEL_COUNT],
+                              int16_t targets[DRIVE_DIFF_WHEEL_COUNT]) {
+  static float s_prev_yaw_deg = 0.0f;
+  static uint32_t s_prev_yaw_ms = 0U;
+  static float s_yaw_rate_dps = 0.0f;
+  static bool s_has_prev = false;
+
+  uint32_t elapsed_turn = (uint32_t)(now_ms - g_turn_cw_start_ms);
+  if (elapsed_turn < TURN_CW_BRAKE_MS) {
+    g_turn_cw_aligned_cycles = 0U;
+    s_has_prev = false;
+    s_yaw_rate_dps = 0.0f;
+    Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+    return false;
+  }
+
+  float cur_yaw = main_baumer_yaw_deg();
+  if (!isfinite(cur_yaw)) {
+    /* Cho mau IMU hop le, khong cho phep quay mu hay chot sai */
+    g_turn_cw_aligned_cycles = 0U;
+    s_has_prev = false;
+    Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+    return (elapsed_turn >= timeout_ms);
+  }
+
+  if (!s_has_prev) {
+    s_prev_yaw_deg = cur_yaw;
+    s_prev_yaw_ms = now_ms;
+    s_yaw_rate_dps = 0.0f;
+    s_has_prev = true;
+  } else {
+    uint32_t dt_ms = (uint32_t)(now_ms - s_prev_yaw_ms);
+    if ((dt_ms > 0U) && (dt_ms <= 100U)) {
+      float raw_rate = Drive_WrapAngleDeg(cur_yaw - s_prev_yaw_deg) * 1000.0f / (float)dt_ms;
+      s_yaw_rate_dps += 0.35f * (raw_rate - s_yaw_rate_dps);
+    }
+    s_prev_yaw_deg = cur_yaw;
+    s_prev_yaw_ms = now_ms;
+  }
+
+  float yaw_err = Drive_WrapAngleDeg(g_turn_cw_target_yaw_deg - cur_yaw);
+  if (fabsf(yaw_err) <= TURN_CW_TOLERANCE_DEG) {
+    g_turn_cw_aligned_cycles++;
+    Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+    if (g_turn_cw_aligned_cycles >= 3U) {
+      g_turn_cw_aligned_cycles = 0U;
+      s_has_prev = false;
+      return true;
+    }
+    return false;
+  }
+
+  g_turn_cw_aligned_cycles = 0U;
+  if (elapsed_turn >= timeout_ms) {
+    s_has_prev = false;
+    Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+    return true;
+  }
+
+  /* Dieu khien PD theo IMU: giam toc muot khi ap sat muc tieu de dung chuan goc */
+  float ang = 90.0f * yaw_err - 3.5f * s_yaw_rate_dps;
+  if (ang > 0.0f && ang < (float)TURN_CW_MIN_RPMX10) ang = (float)TURN_CW_MIN_RPMX10;
+  else if (ang < 0.0f && ang > -(float)TURN_CW_MIN_RPMX10) ang = -(float)TURN_CW_MIN_RPMX10;
+  if (ang > (float)TURN_CW_MAX_RPMX10) ang = (float)TURN_CW_MAX_RPMX10;
+  else if (ang < -(float)TURN_CW_MAX_RPMX10) ang = -(float)TURN_CW_MAX_RPMX10;
+  Drive_DiffCompute(0, (int16_t)ang, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+  return false;
+}
+
 static void main_update_track_sensors(uint32_t now_ms) {
-  g_autonics_active = (HAL_GPIO_ReadPin(AUTONICS_INPUT_GPIO_Port, AUTONICS_INPUT_Pin) == GPIO_PIN_SET);
+  g_autonics_active = (HAL_GPIO_ReadPin(AUTONICS_INPUT_GPIO_Port, AUTONICS_INPUT_Pin) == GPIO_PIN_RESET);
   g_baumer_active   = (HAL_GPIO_ReadPin(BAUMER_INPUT_GPIO_Port, BAUMER_INPUT_Pin) == GPIO_PIN_SET);
-  g_omron_active    = (HAL_GPIO_ReadPin(OMRON_INPUT_GPIO_Port, OMRON_INPUT_Pin) == GPIO_PIN_SET);
+  g_omron_active    = (HAL_GPIO_ReadPin(OMRON_INPUT_GPIO_Port, OMRON_INPUT_Pin) == GPIO_PIN_RESET);
+
+  bool obstacle_raw = g_autonics_active || g_omron_active;
+  if (obstacle_raw) {
+    g_obstacle_hold_active = true;
+    g_obstacle_last_seen_ms = now_ms;
+  } else if (g_obstacle_hold_active &&
+             ((uint32_t)(now_ms - g_obstacle_last_seen_ms) >= g_obstacle_resume_delay_ms)) {
+    g_obstacle_hold_active = false;
+  }
 
   if ((g_drive_mode != MAINRB2_DRIVE_LINE_FOLLOW) || g_estop_latched) {
     return;
@@ -581,10 +826,16 @@ static void main_update_track_sensors(uint32_t now_ms) {
     break;
 
   case TRACK_FSM_CRUISE:
-    /* Khi BAUMER bat duoc -> ghi lai goc IMU ngay va bat dau phanh dung xe 150ms */
+    /* Khi BAUMER bat duoc -> dem so lan bat; lan 3 xu ly dac biet, lan khac phanh & nan goc */
     if (g_baumer_active) {
       if (g_baumer_must_release) {
         /* Hop cu chua nha / robot vua tiep tuc chay -> chua kich hoat */
+        break;
+      }
+      g_baumer_trigger_count++;
+      if (g_baumer_trigger_count == BAUMER_3RD_TRIGGER_INDEX) {
+        g_baumer_3rd_off_start_ms = 0U;
+        g_track_fsm = TRACK_FSM_BAUMER_3RD_PASS;
         break;
       }
       g_baumer_yaw_at_stop_deg = main_baumer_yaw_deg();
@@ -601,13 +852,32 @@ static void main_update_track_sensors(uint32_t now_ms) {
     } else {
       g_baumer_must_release = false; /* Da nha khoi vung cam bien, san sang bat hop tiep theo */
     }
+    break;
 
-    /* Khi dang chay line tien ma OMRON bat duoc -> dung xe cho 2 giay */
-    if (g_omron_active && (g_line_direction > 0) && !g_omron_reversed) {
-      g_track_fsm = TRACK_FSM_OMRON_WAIT_2S;
-      g_omron_wait_start_ms = now_ms;
-      break;
+  case TRACK_FSM_BAUMER_3RD_PASS:
+    /* Lan mo thu 3: chay 100 RPM cho toi khi BAUMER tat han (loc nhieu 20ms) -> quay phai 15 do */
+    if (!g_baumer_active) {
+      if (g_baumer_3rd_off_start_ms == 0U) {
+        g_baumer_3rd_off_start_ms = now_ms;
+      } else if ((uint32_t)(now_ms - g_baumer_3rd_off_start_ms) >= BAUMER_3RD_OFF_DEBOUNCE_MS) {
+        float cur_yaw = main_baumer_yaw_deg();
+        g_turn_cw_aligned_cycles = 0U;
+        g_turn_cw_start_ms = now_ms;
+        if (isfinite(cur_yaw)) {
+          g_turn_cw_target_yaw_deg = Drive_WrapAngleDeg(cur_yaw - g_baumer_3rd_turn_deg);
+          g_track_fsm = TRACK_FSM_BAUMER_3RD_TURN_CW_15;
+        } else {
+          g_track_fsm = TRACK_FSM_BAUMER_STRUCK;
+          g_baumer_struck_ms = now_ms;
+        }
+      }
+    } else {
+      g_baumer_3rd_off_start_ms = 0U;
     }
+    break;
+
+  case TRACK_FSM_BAUMER_3RD_TURN_CW_15:
+    /* Duoc xu ly trong vong lap dieu khien 10ms */
     break;
 
   case TRACK_FSM_BAUMER_BRAKING:
@@ -624,21 +894,8 @@ static void main_update_track_sensors(uint32_t now_ms) {
     break;
 
   case TRACK_FSM_OMRON_WAIT_2S:
-    /* Dang dung xe cho 2 giay */
-    if ((uint32_t)(now_ms - g_omron_wait_start_ms) >= OMRON_CONFIRM_WAIT_MS) {
-      if (g_omron_active) {
-        /* Sau 2s ma van con tin hieu -> do line dang sau, di lui theo line */
-        g_line_direction = -1;
-        g_line_base_rpm_x10 = -g_line_cruise_rpm_x10;
-        g_omron_reversed = true;
-        g_track_fsm = TRACK_FSM_CRUISE; /* Bat dau bam line sau lui binh thuong */
-        Drive_LineFollowReset(&g_line_state);
-      } else {
-        /* Neu sau 2s da het tin hieu OMRON -> tiep tuc chay tien */
-        g_track_fsm = TRACK_FSM_CRUISE;
-        Drive_LineFollowReset(&g_line_state);
-      }
-    }
+    /* OMRON disabled */
+    g_track_fsm = TRACK_FSM_CRUISE;
     break;
 
   case TRACK_FSM_BAUMER_STRUCK:
@@ -682,6 +939,10 @@ void MainRB2_EnableLineFollow(bool enable, int16_t base_rpm_x10) {
   if (enable) {
     if ((g_drive_mode == MAINRB2_DRIVE_AUTO) && (g_auto.state == ITC_STATE_CAL_SWEEP)) {
       main_cancel_auto_calibration(HAL_GetTick());
+    } else if (CD4067_IsTwoPointCalRecording()) {
+      if (!main_apply_saved_line_calibration()) {
+        CD4067_StartCalibration();
+      }
     }
     if (g_drive_mode != MAINRB2_DRIVE_LINE_FOLLOW) {
       Drive_LineFollowReset(&g_line_state);
@@ -691,11 +952,17 @@ void MainRB2_EnableLineFollow(bool enable, int16_t base_rpm_x10) {
     g_omron_reversed = false;
     g_sweep_seen_mask = 0U;
     g_reverse_straight = (Drive_StraightState_t){0};
+    g_reverse_yaw_integral = 0.0f;
+    g_reverse_cmd_rpm_f = (float)g_reverse_sweep_start_rpm_x10;
     g_reverse_sweep_start_ms = 0U;
     g_turn_cw_aligned_cycles = 0U;
     g_turn_cw_start_ms = 0U;
     g_baumer_aligned_cycles = 0U;
     g_baumer_must_release = false;
+    g_baumer_trigger_count = 0U;
+    g_baumer_3rd_off_start_ms = 0U;
+    g_obstacle_hold_active = false;
+    g_obstacle_last_seen_ms = 0U;
     g_track_fsm = TRACK_FSM_REVERSE_SWEEP;
     g_line_base_rpm_x10 = base_rpm_x10;
     g_drive_mode = MAINRB2_DRIVE_LINE_FOLLOW;
@@ -706,10 +973,16 @@ void MainRB2_EnableLineFollow(bool enable, int16_t base_rpm_x10) {
     g_omron_reversed = false;
     g_sweep_seen_mask = 0U;
     g_reverse_straight = (Drive_StraightState_t){0};
+    g_reverse_yaw_integral = 0.0f;
+    g_reverse_cmd_rpm_f = (float)g_reverse_sweep_start_rpm_x10;
     g_reverse_sweep_start_ms = 0U;
     g_track_fsm = TRACK_FSM_CRUISE;
     g_baumer_aligned_cycles = 0U;
     g_baumer_must_release = false;
+    g_baumer_trigger_count = 0U;
+    g_baumer_3rd_off_start_ms = 0U;
+    g_obstacle_hold_active = false;
+    g_obstacle_last_seen_ms = 0U;
     g_turn_cw_aligned_cycles = 0U;
     g_cmd_linear_rpm_x10 = 0;
     g_cmd_angular_rpm_x10 = 0;
@@ -783,13 +1056,17 @@ int main(void)
     Error_Handler();
   }
 
-  float servo_ch4_applied_deg = g_baumer_servo_idle_deg;
+  float servo_ch4_applied_deg = g_baumer_servo_init_deg;
   if (Servo_Config270(SERVO_CH_4, SERVO_PWM_MIN_US,
                       SERVO_PWM_MAX_US, false) != HAL_OK ||
       Servo_SetAngle270(SERVO_CH_4, servo_ch4_applied_deg) != HAL_OK) {
     Error_Handler();
   }
   g_servo_ch4_angle_deg = servo_ch4_applied_deg;
+  float servo_ch4_ramp_start_deg = servo_ch4_applied_deg;
+  float servo_ch4_ramp_target_deg = servo_ch4_applied_deg;
+  uint32_t servo_ch4_ramp_start_ms = 0U;
+  uint32_t servo_ch4_ramp_dur_ms = 0U;
 
   /* Half-duplex RS-485 Master on USART2 + PA1 RE/DE for 2 diff wheels (PidBoard
    * IDs 1..2) */
@@ -813,8 +1090,6 @@ int main(void)
   /* Onboard switches SW1 (PB12) & SW2 (PA15): external +5V/+3V3 FT-safe inputs
    */
   Buttons_Init(true, true);
-  /* A held SW2 at boot must be released before it can start calibration. */
-  g_sw2_long_handled = Buttons_IsPressed(BTN_SW2);
 
   /* CH1 is the Load Port trigger servo. */
   (void)Servo_Config270(SERVO_CH_1, SERVO_PWM_MIN_US, SERVO_PWM_MAX_US, false);
@@ -927,15 +1202,14 @@ int main(void)
    /* 3. Non-blocking round-robin VL53L1X poll (1 sensor every 5 ms) */
    ToF_Poll(&g_tof, now_ms);
 
-   /* 4. SW1 starts/stops front line following; SW2 hold>=800ms sweeps 2-pt cal, tap
-    * cycles LED view */
+   /* 4. SW1 starts/stops line following; SW2 toggles 2-pt line cal + Flash save */
    Buttons_Update(now_ms);
    bool sw1_pressed = Buttons_ConsumePressed(BTN_SW1) || s_rf_sw1_trigger;
    s_rf_sw1_trigger = false;
    if (sw1_pressed) {
      if ((g_drive_mode == MAINRB2_DRIVE_LINE_FOLLOW) &&
          (g_track_fsm == TRACK_FSM_BAUMER_STRUCK)) {
-       /* Bấm nút 1 sau khi đập hộp: Nhấc servo lên góc nghỉ 30 độ và tiếp tục bám line tới các hộp mốc tiếp theo */
+       /* Bấm nút 1 sau khi đập hộp: Nhấc servo về góc chờ 220 độ và tiếp tục bám line tới các hộp mốc tiếp theo */
        g_track_fsm = TRACK_FSM_CRUISE;
        g_line_direction = +1;
        g_omron_reversed = false;
@@ -945,12 +1219,10 @@ int main(void)
        g_baumer_brake_start_ms = 0U;
        g_baumer_align_start_ms = 0U;
        g_baumer_struck_ms = 0U;
+       g_baumer_3rd_off_start_ms = 0U;
        g_baumer_must_release = true;
        Drive_LineFollowReset(&g_line_state);
        g_line_straight = (Drive_StraightState_t){0};
-       (void)Servo_SetAngle270(SERVO_CH_4, g_baumer_servo_idle_deg);
-       servo_ch4_applied_deg = g_baumer_servo_idle_deg;
-       g_servo_ch4_angle_deg = g_baumer_servo_idle_deg;
      } else if (g_drive_mode == MAINRB2_DRIVE_LINE_FOLLOW) {
        MainRB2_EnableLineFollow(false, 0);
        g_track_fsm = TRACK_FSM_CANCELLED;
@@ -969,24 +1241,33 @@ int main(void)
        MainRB2_ClearWheelFaults();
      } else if ((g_drive_mode == MAINRB2_DRIVE_AUTO) ||
                 (g_drive_mode == MAINRB2_DRIVE_IDLE)) {
-       MainRB2_ClearWheelFaults();
-       MainRB2_EnableLineFollow(true, g_line_cruise_rpm_x10);
+       if (!CD4067_IsTwoPointCalRecording()) {
+         MainRB2_ClearWheelFaults();
+         MainRB2_EnableLineFollow(true, g_line_cruise_rpm_x10);
+       }
      }
    }
-   if ((g_pidboard_test.enable != 0U) || (g_drive_mode == MAINRB2_DRIVE_LINE_FOLLOW)) {
-     g_sw2_long_handled = Buttons_IsPressed(BTN_SW2);
-     g_pending_sw2_cal_edge = false;
-   } else if (!g_sw2_long_handled && Buttons_IsPressed(BTN_SW2) &&
-              (Buttons_GetHoldMs(BTN_SW2, now_ms) >= SW2_CAL_HOLD_MS)) {
-     g_sw2_long_handled = true;
-     g_pending_sw2_cal_edge = true;
-   } else if (Buttons_WasReleased(BTN_SW2)) {
-     if (g_sw2_long_handled) {
-       g_sw2_long_handled = false;
-     } else if (g_auto.state == ITC_STATE_CAL_SWEEP) {
-       g_pending_sw2_cal_edge = true;
+   bool sw2_pressed = Buttons_ConsumePressed(BTN_SW2);
+   if (sw2_pressed && (g_pidboard_test.enable == 0U) &&
+       (g_drive_mode != MAINRB2_DRIVE_LINE_FOLLOW) &&
+       (calib == LINE_CAL_IDLE)) {
+     if (!CD4067_IsTwoPointCalRecording()) {
+       /* Nhan SW2 lan 1: bat dau calib 2 diem (quet White/Black) */
+       CD4067_BeginTwoPointCal();
+       s_calib_feedback_state = CALIB_FB_NONE;
      } else {
-       (void)CD4067_CycleLedViewMode();
+       /* Nhan SW2 lan 2: ket thuc calib & luu Flash */
+       if (CD4067_FinishTwoPointCal(CD4067_POLARITY_AUTO)) {
+         main_save_two_point_cal_to_flash();
+         s_calib_feedback_state = CALIB_FB_SUCCESS;
+         s_calib_feedback_start_ms = now_ms;
+       } else {
+         if (!main_apply_saved_line_calibration()) {
+           CD4067_StartCalibration();
+         }
+         s_calib_feedback_state = CALIB_FB_ERROR;
+         s_calib_feedback_start_ms = now_ms;
+       }
      }
    }
 
@@ -1001,7 +1282,7 @@ int main(void)
    }
    g_front_error = CD4067_GetFrontError();
    g_rear_error = CD4067_GetRearError();
-   CD4067_UpdateLeds(now_ms);
+   MainRB2_UpdateStatusLeds(now_ms);
 
    /* 6. Execute pending BNO08x DCD Save / Clear (triggered by Live
     * Expressions) */
@@ -1045,21 +1326,45 @@ int main(void)
    if ((uint32_t)(now_ms - g_last_rs485_tx_ms) >= RS485_TX_PERIOD_MS) {
      g_last_rs485_tx_ms = now_ms;
      main_update_track_sensors(now_ms);
+     bool obstacle_hold = g_obstacle_hold_active &&
+                          (g_track_fsm != TRACK_FSM_BAUMER_ALIGNING) &&
+                          (g_track_fsm != TRACK_FSM_BAUMER_3RD_TURN_CW_15);
      bool line_holding = (g_track_fsm == TRACK_FSM_BAUMER_BRAKING) ||
                          (g_track_fsm == TRACK_FSM_BAUMER_STRUCK) ||
-                         (g_track_fsm == TRACK_FSM_OMRON_WAIT_2S) ||
-                         (g_track_fsm == TRACK_FSM_CANCELLED);
-     float servo_ch4_requested_deg;
-     if (g_track_fsm == TRACK_FSM_BAUMER_STRUCK) {
-       uint32_t elapsed_struck = (uint32_t)(now_ms - g_baumer_struck_ms);
-       servo_ch4_requested_deg = main_mcp_servo_ramp(g_baumer_servo_idle_deg, g_baumer_servo_active_deg,
-                                                     elapsed_struck, g_baumer_servo_ramp_ms);
+                         (g_track_fsm == TRACK_FSM_CANCELLED) ||
+                         obstacle_hold;
+     float servo_ch4_target_deg;
+     if ((g_drive_mode != MAINRB2_DRIVE_LINE_FOLLOW) ||
+         (g_track_fsm == TRACK_FSM_REVERSE_SWEEP) ||
+         (g_track_fsm == TRACK_FSM_TURN_CW_30) ||
+         (g_track_fsm == TRACK_FSM_CANCELLED)) {
+       servo_ch4_target_deg = g_baumer_servo_init_deg;
+     } else if (g_track_fsm == TRACK_FSM_BAUMER_STRUCK) {
+       servo_ch4_target_deg = g_baumer_servo_active_deg;
      } else {
-       servo_ch4_requested_deg = g_baumer_servo_idle_deg;
+       servo_ch4_target_deg = g_baumer_servo_idle_deg;
      }
+     if (fabsf(servo_ch4_target_deg - servo_ch4_ramp_target_deg) >= 0.05f) {
+       servo_ch4_ramp_start_deg = servo_ch4_applied_deg;
+       servo_ch4_ramp_target_deg = servo_ch4_target_deg;
+       servo_ch4_ramp_start_ms = now_ms;
+       float delta_deg = fabsf(servo_ch4_ramp_target_deg - servo_ch4_ramp_start_deg);
+       if (delta_deg <= 30.0f) {
+         servo_ch4_ramp_dur_ms = g_baumer_servo_ramp_ms;
+       } else {
+         float span_ref = (g_baumer_servo_active_deg > 1.0f) ? g_baumer_servo_active_deg : 240.0f;
+         servo_ch4_ramp_dur_ms = (uint32_t)((float)g_baumer_servo_long_ramp_ms * (delta_deg / span_ref) + 0.5f);
+         if (servo_ch4_ramp_dur_ms < g_baumer_servo_ramp_ms) {
+           servo_ch4_ramp_dur_ms = g_baumer_servo_ramp_ms;
+         }
+       }
+     }
+     uint32_t elapsed_servo = (uint32_t)(now_ms - servo_ch4_ramp_start_ms);
+     float servo_ch4_requested_deg = main_mcp_servo_ramp(
+         servo_ch4_ramp_start_deg, servo_ch4_ramp_target_deg,
+         elapsed_servo, servo_ch4_ramp_dur_ms);
      if ((fabsf(servo_ch4_requested_deg - servo_ch4_applied_deg) >= 0.05f ||
-          servo_ch4_requested_deg == g_baumer_servo_active_deg ||
-          servo_ch4_requested_deg == g_baumer_servo_idle_deg) &&
+          servo_ch4_requested_deg == servo_ch4_ramp_target_deg) &&
          Servo_SetAngle270(SERVO_CH_4, servo_ch4_requested_deg) == HAL_OK) {
        servo_ch4_applied_deg = servo_ch4_requested_deg;
      }
@@ -1076,20 +1381,30 @@ int main(void)
      int16_t targets[DRIVE_DIFF_WHEEL_COUNT] = {0};
 
      if (line_holding) {
+       if (g_track_fsm == TRACK_FSM_REVERSE_SWEEP) {
+         g_reverse_cmd_rpm_f = (float)g_reverse_sweep_start_rpm_x10;
+       }
        Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched,
                          modes, targets);
      } else if (g_track_fsm == TRACK_FSM_REVERSE_SWEEP) {
        if (g_reverse_sweep_start_ms == 0U) {
          g_reverse_sweep_start_ms = now_ms;
+         g_reverse_cmd_rpm_f = (float)g_reverse_sweep_start_rpm_x10;
        }
-       /* Tich luy cac mat line da tung bat duoc tren ca 2 cum mat */
-       g_sweep_seen_mask |= cd4067_data.active_mask;
+       /* Tich luy cac mat sau da quet qua line, dung ngay khi mat truoc cham line */
+       g_sweep_seen_mask |= (cd4067_data.active_mask & REVERSE_SWEEP_REAR_MASK);
 
-       bool rear_swept  = ((g_sweep_seen_mask & REVERSE_SWEEP_REAR_MASK)  == REVERSE_SWEEP_REAR_MASK);
-       bool front_swept = ((g_sweep_seen_mask & REVERSE_SWEEP_FRONT_MASK) == REVERSE_SWEEP_FRONT_MASK);
+       uint16_t rear_bits = g_sweep_seen_mask & REVERSE_SWEEP_REAR_MASK;
+       uint8_t rear_cnt = 0U;
+       while (rear_bits != 0U) {
+         rear_cnt += (uint8_t)(rear_bits & 1U);
+         rear_bits >>= 1U;
+       }
+       bool rear_swept = (rear_cnt >= 2U);
+       bool front_hit = rear_swept && ((cd4067_data.active_mask & REVERSE_SWEEP_FRONT_MASK) != 0U);
 
-       if (rear_swept && front_swept) {
-         /* Da quet qua ca mat 8..4 va 9..12 -> luu goc yaw va chuyen sang quay CW 30 do */
+       if (front_hit) {
+         /* Mat truoc da cham line -> phanh dung & quay CW 30 do ngay tai vach */
          float cur_yaw = main_baumer_yaw_deg();
          if (isfinite(cur_yaw)) {
            g_turn_cw_target_yaw_deg = Drive_WrapAngleDeg(cur_yaw - TURN_CW_30_DEG);
@@ -1101,70 +1416,80 @@ int main(void)
          g_track_fsm = TRACK_FSM_TURN_CW_30;
          Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
        } else {
-         /* Ramp tang toc lui tu tu bang MCP de triet tieu giat dot ngot, giu xe di thang khong bi dao */
+         /* Tang toc em bang duong cong MCP 0.5s -> giu -> giam muot + khoa goc IMU PID */
          uint32_t elapsed_ms = (uint32_t)(now_ms - g_reverse_sweep_start_ms);
-         float target_rpm_f = main_mcp_ramp((float)g_reverse_sweep_start_rpm_x10,
-                                            (float)g_reverse_sweep_rpm_x10,
-                                            elapsed_ms, g_reverse_sweep_ramp_ms);
-         int16_t current_reverse_rpm = (int16_t)(target_rpm_f <= 0.0f ? (target_rpm_f - 0.5f) : (target_rpm_f + 0.5f));
-         (void)main_straight_step(&g_reverse_straight, current_reverse_rpm,
-                                  DRIVE_DEFAULT_MAX_RPMX10, modes, targets);
+         uint32_t ramp_ms = g_reverse_sweep_ramp_ms;
+         uint32_t hold_ms = g_reverse_sweep_hold_ms;
+         uint32_t decel_ms = g_reverse_sweep_decel_ms;
+         float start_rpm = (float)g_reverse_sweep_start_rpm_x10;
+         float cruise_rpm = (float)g_reverse_sweep_rpm_x10;
+         float end_rpm = (float)g_reverse_sweep_end_rpm_x10;
+         float target_rpm_f;
+
+         if (rear_swept) {
+           target_rpm_f = end_rpm;
+         } else if (elapsed_ms < ramp_ms) {
+           target_rpm_f = main_mcp_ramp(start_rpm, cruise_rpm, elapsed_ms, ramp_ms);
+         } else if ((uint32_t)(elapsed_ms - ramp_ms) < hold_ms) {
+           target_rpm_f = cruise_rpm;
+         } else {
+           uint32_t decel_elapsed = (uint32_t)(elapsed_ms - ramp_ms - hold_ms);
+           target_rpm_f = main_mcp_ramp(cruise_rpm, end_rpm, decel_elapsed, decel_ms);
+         }
+         g_reverse_cmd_rpm_f = Drive_SlewRamp(g_reverse_cmd_rpm_f, target_rpm_f, 180.0f, 180.0f);
+         int16_t current_reverse_rpm = (int16_t)(g_reverse_cmd_rpm_f <= 0.0f
+                                                     ? (g_reverse_cmd_rpm_f - 0.5f)
+                                                     : (g_reverse_cmd_rpm_f + 0.5f));
+         main_reverse_straight_step(current_reverse_rpm, now_ms, modes, targets);
        }
      } else if (g_track_fsm == TRACK_FSM_TURN_CW_30) {
-       float cur_yaw = main_baumer_yaw_deg();
-       float yaw_err = isfinite(cur_yaw) ? Drive_WrapAngleDeg(g_turn_cw_target_yaw_deg - cur_yaw) : 0.0f;
-
-       if (fabsf(yaw_err) <= TURN_CW_TOLERANCE_DEG) {
-         g_turn_cw_aligned_cycles++;
-       } else {
-         g_turn_cw_aligned_cycles = 0U;
-       }
-
-       bool aligned = (g_turn_cw_aligned_cycles >= 3U);
-       bool timeout = ((uint32_t)(now_ms - g_turn_cw_start_ms) >= TURN_CW_TIMEOUT_MS);
-
-       if (aligned || timeout) {
-         g_turn_cw_aligned_cycles = 0U;
+       if (main_step_turn_cw(now_ms, TURN_CW_TIMEOUT_MS, modes, targets)) {
          g_line_direction = +1;
          g_omron_reversed = false;
          g_line_base_rpm_x10 = g_line_cruise_rpm_x10;
          Drive_LineFollowReset(&g_line_state);
          g_line_straight = (Drive_StraightState_t){0};
          g_track_fsm = TRACK_FSM_CRUISE;
-         Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
-       } else {
-         /* Quay phai CW tai cho (manh gap 2 lan) */
-         float ang = yaw_err * 80.0f;
-         if (ang > 0.0f && ang < (float)TURN_CW_MIN_RPMX10) ang = (float)TURN_CW_MIN_RPMX10;
-         else if (ang < 0.0f && ang > -(float)TURN_CW_MIN_RPMX10) ang = -(float)TURN_CW_MIN_RPMX10;
-         if (ang > (float)TURN_CW_MAX_RPMX10) ang = (float)TURN_CW_MAX_RPMX10;
-         else if (ang < -(float)TURN_CW_MAX_RPMX10) ang = -(float)TURN_CW_MAX_RPMX10;
-         Drive_DiffCompute(0, (int16_t)ang, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+       }
+     } else if (g_track_fsm == TRACK_FSM_BAUMER_3RD_TURN_CW_15) {
+       if (main_step_turn_cw(now_ms, BAUMER_3RD_TURN_TIMEOUT_MS, modes, targets)) {
+         g_track_fsm = TRACK_FSM_BAUMER_STRUCK;
+         g_baumer_struck_ms = now_ms;
        }
      } else if (g_track_fsm == TRACK_FSM_BAUMER_ALIGNING) {
        float cur_yaw = main_baumer_yaw_deg();
-       float yaw_err = isfinite(cur_yaw) ? Drive_WrapAngleDeg(g_baumer_yaw_at_stop_deg - cur_yaw) : 0.0f;
-
-       if (fabsf(yaw_err) <= BAUMER_ALIGN_TOLERANCE_DEG) {
-         g_baumer_aligned_cycles++;
-       } else {
+       uint32_t elapsed_align = (uint32_t)(now_ms - g_baumer_align_start_ms);
+       if (!isfinite(cur_yaw)) {
          g_baumer_aligned_cycles = 0U;
-       }
-
-       bool aligned = (g_baumer_aligned_cycles >= 3U);
-       bool timeout = ((uint32_t)(now_ms - g_baumer_align_start_ms) >= BAUMER_ALIGN_TIMEOUT_MS);
-       if (aligned || timeout) {
-         g_baumer_aligned_cycles = 0U;
-         g_track_fsm = TRACK_FSM_BAUMER_STRUCK;
-         g_baumer_struck_ms = now_ms;
          Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+         if (elapsed_align >= BAUMER_ALIGN_TIMEOUT_MS) {
+           g_track_fsm = TRACK_FSM_BAUMER_STRUCK;
+           g_baumer_struck_ms = now_ms;
+         }
        } else {
-         float ang = yaw_err * 50.0f;
-         if (ang > 0.0f && ang < (float)BAUMER_ALIGN_MIN_RPMX10) ang = (float)BAUMER_ALIGN_MIN_RPMX10;
-         else if (ang < 0.0f && ang > -(float)BAUMER_ALIGN_MIN_RPMX10) ang = -(float)BAUMER_ALIGN_MIN_RPMX10;
-         if (ang > (float)BAUMER_ALIGN_MAX_RPMX10) ang = (float)BAUMER_ALIGN_MAX_RPMX10;
-         else if (ang < -(float)BAUMER_ALIGN_MAX_RPMX10) ang = -(float)BAUMER_ALIGN_MAX_RPMX10;
-         Drive_DiffCompute(0, (int16_t)ang, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+         float yaw_err = Drive_WrapAngleDeg(g_baumer_yaw_at_stop_deg - cur_yaw);
+         if (fabsf(yaw_err) <= BAUMER_ALIGN_TOLERANCE_DEG) {
+           g_baumer_aligned_cycles++;
+           Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+         } else {
+           g_baumer_aligned_cycles = 0U;
+         }
+
+         bool aligned = (g_baumer_aligned_cycles >= 3U);
+         bool timeout = (elapsed_align >= BAUMER_ALIGN_TIMEOUT_MS);
+         if (aligned || timeout) {
+           g_baumer_aligned_cycles = 0U;
+           g_track_fsm = TRACK_FSM_BAUMER_STRUCK;
+           g_baumer_struck_ms = now_ms;
+           Drive_DiffCompute(0, 0, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+         } else if (fabsf(yaw_err) > BAUMER_ALIGN_TOLERANCE_DEG) {
+           float ang = yaw_err * 70.0f;
+           if (ang > 0.0f && ang < (float)BAUMER_ALIGN_MIN_RPMX10) ang = (float)BAUMER_ALIGN_MIN_RPMX10;
+           else if (ang < 0.0f && ang > -(float)BAUMER_ALIGN_MIN_RPMX10) ang = -(float)BAUMER_ALIGN_MIN_RPMX10;
+           if (ang > (float)BAUMER_ALIGN_MAX_RPMX10) ang = (float)BAUMER_ALIGN_MAX_RPMX10;
+           else if (ang < -(float)BAUMER_ALIGN_MAX_RPMX10) ang = -(float)BAUMER_ALIGN_MAX_RPMX10;
+           Drive_DiffCompute(0, (int16_t)ang, DRIVE_DEFAULT_MAX_RPMX10, g_estop_latched, modes, targets);
+         }
        }
      } else if (g_drive_mode == MAINRB2_DRIVE_AUTO) {
        uint16_t f_mm = TOF_INVALID_DISTANCE_MM;
@@ -1177,8 +1502,7 @@ int main(void)
        ITC_AutoInput_t ain = {0};
        ain.now_ms = now_ms;
        ain.start_toggle_edge = !line_cal_active && g_pending_sw1_edge;
-       ain.cal_toggle_edge = !line_cal_active && (g_pidboard_test.enable == 0U) &&
-                             g_pending_sw2_cal_edge;
+       ain.cal_toggle_edge = false;
        ain.estop_req = g_estop_latched;
        ain.cal_done = CD4067_IsCalibrated();
        ain.front_mask = g_front_mask;
@@ -1198,7 +1522,6 @@ int main(void)
            g_manual_link_ok &&
            ((g_manual_msg.flags & RF_MANUAL_FLAG_SW2) != 0U);
        g_pending_sw1_edge = false;
-       g_pending_sw2_cal_edge = false;
 
        ITC_AutoStep(&g_auto, &ain, &g_auto_out);
 
@@ -1207,22 +1530,7 @@ int main(void)
        }
        if (g_auto_out.req_finish_two_point_cal) {
          if (CD4067_FinishTwoPointCal(CD4067_POLARITY_AUTO)) {
-           if (!g_flash_cal_loaded) {
-             FlashCal_InitDefaults(&g_flash_cal);
-           }
-           g_flash_cal.seq++;
-           g_flash_cal.flags |= FLASH_CAL_FLAG_LINE_VALID;
-           CD4067_ExportTwoPointCal(g_flash_cal.cal_min, g_flash_cal.cal_max,
-                                    &g_flash_cal.line_on_high);
-           if (g_imu.connected && g_imu.healthy) {
-             BNO055_IMU_ZeroYaw(&g_imu);
-             g_flash_cal.imu_field_offset_deg = g_imu.yaw;
-             g_flash_cal.flags |= FLASH_CAL_FLAG_IMU_VALID;
-             if (g_imu.chip_id == 0x85U) {
-               (void)BNO08X_SaveCalibration(&hi2c3, g_imu.i2c_addr);
-             }
-           }
-           g_flash_cal_loaded = FlashCal_Save(&g_flash_cal);
+           main_save_two_point_cal_to_flash();
          }
        }
 
@@ -1306,7 +1614,9 @@ int main(void)
      }
 
      bool stop_priority = line_holding || g_estop_latched || (g_track_fsm == TRACK_FSM_BAUMER_ALIGNING) ||
-                          (g_track_fsm == TRACK_FSM_REVERSE_SWEEP) || (g_track_fsm == TRACK_FSM_TURN_CW_30);
+                          (g_track_fsm == TRACK_FSM_REVERSE_SWEEP) || (g_track_fsm == TRACK_FSM_TURN_CW_30) ||
+                          (g_track_fsm == TRACK_FSM_BAUMER_3RD_PASS) ||
+                          (g_track_fsm == TRACK_FSM_BAUMER_3RD_TURN_CW_15);
      if (!stop_priority && (s_pid_cfg_stage == 2U)) {
        RS485_CfgCmd_t cfg = {0};
        cfg.subcmd = (uint8_t)RS485_CFG_SET_VEL_KP_M;
@@ -1939,10 +2249,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(MH_DC_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : AUTONICS_INPUT_Pin BAUMER_INPUT_Pin SW1_Pin OMRON_INPUT_Pin */
-  GPIO_InitStruct.Pin = AUTONICS_INPUT_Pin|BAUMER_INPUT_Pin|SW1_Pin|OMRON_INPUT_Pin;
+  /*Configure GPIO pins : BAUMER_INPUT_Pin SW1_Pin */
+  GPIO_InitStruct.Pin = BAUMER_INPUT_Pin|SW1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : AUTONICS_INPUT_Pin OMRON_INPUT_Pin (NPN open-collector) */
+  GPIO_InitStruct.Pin = AUTONICS_INPUT_Pin|OMRON_INPUT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : L11_Pin LS4_Pin L8_Pin L7_Pin
